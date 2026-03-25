@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>多维表格 JS 引擎</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { padding: 12px; font-family: system-ui; }
+    #code {
+      width: 100%;
+      height: 300px;
+      padding: 10px;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      font-family: monospace;
+    }
+    #run {
+      margin: 10px 0;
+      padding: 8px 16px;
+      background: #0066ff;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    #output {
+      padding: 10px;
+      background: #f9fafb;
+      border-radius: 6px;
+      white-space: pre-wrap;
+      max-height: 260px;
+      overflow: auto;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+<textarea id="code" placeholder="写 JS 代码，可直接用 bitable / console / print"></textarea>
+<button id="run">运行代码</button>
+<pre id="output"></pre>
+
+<script src="https://unpkg.com/@lark-base-open/js-sdk"></script>
+<script>
+  const { bitable } = window;
+  const codeEl = document.getElementById('code');
+  const runEl = document.getElementById('run');
+  const outputEl = document.getElementById('output');
+
+  // 往页面输出一行内容
+  function appendToOutput(text) {
+    outputEl.textContent += text + '\n';
+  }
+
+  // 模拟 Python 风格 print
+  function print(...args) {
+    const str = args.map(item => {
+      if (typeof item === 'object' && item !== null) {
+        try {
+          return JSON.stringify(item, null, 2);
+        } catch (e) {
+          return String(item);
+        }
+      }
+      return String(item);
+    }).join(' ');
+
+    appendToOutput(str);
+  }
+
+  // 自定义 console，也输出到页面
+  const customConsole = {
+    log: (...args) => print(...args),
+    warn: (...args) => print('[WARN]', ...args),
+    error: (...args) => print('[ERROR]', ...args),
+  };
+
+  // 执行上下文
+  const context = Object.freeze({
+    bitable,
+    console: customConsole,
+    print, // 直接把 Python 风格 print 暴露出去
+  });
+
+  async function run() {
+    outputEl.textContent = '';
+    const code = codeEl.value.trim();
+    if (!code) return;
+
+    try {
+      const fn = new Function(
+        ...Object.keys(context),
+        `return (async () => { ${code} })();`
+      );
+      await fn(...Object.values(context));
+
+      /*
+      const result = await fn(...Object.values(context));
+      if (result !== undefined) {
+        appendToOutput(`\n✅ 返回值：`);
+        print(result);
+      }
+      */
+
+    } catch (err) {
+      appendToOutput(`❌ 异常：${err.message}`);
+    }
+  }
+
+  runEl.addEventListener('click', run);
+</script>
+</body>
+</html>
