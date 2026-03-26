@@ -219,8 +219,28 @@ function initResizer() {
   });
 }
 
-// 往终端输出内容
+// 往终端输出内容，模拟 Python 的 print 函数
 function print(...args) {
+  // 处理关键字参数
+  let sep = ' ';
+  let end = '\r\n';
+  let file = null;
+  let flush = false;
+  
+  // 检查最后一个参数是否为对象（可能包含关键字参数）
+  if (args.length > 0) {
+    const lastArg = args[args.length - 1];
+    if (typeof lastArg === 'object' && lastArg !== null && !Array.isArray(lastArg)) {
+      if (lastArg.sep !== undefined) sep = lastArg.sep;
+      if (lastArg.end !== undefined) end = lastArg.end;
+      if (lastArg.file !== undefined) file = lastArg.file;
+      if (lastArg.flush !== undefined) flush = lastArg.flush;
+      // 移除关键字参数对象
+      args.pop();
+    }
+  }
+  
+  // 转换并连接参数
   const str = args.map(item => {
     if (typeof item === 'object' && item !== null) {
       try {
@@ -230,9 +250,17 @@ function print(...args) {
       }
     }
     return String(item);
-  }).join(' ');
+  }).join(sep);
 
-  terminal.write(str + '\r\n');
+  // 输出到指定文件或默认终端
+  if (file && typeof file.write === 'function') {
+    file.write(str + end);
+    if (flush && typeof file.flush === 'function') {
+      file.flush();
+    }
+  } else {
+    terminal.write(str + end);
+  }
 }
 
 // 自定义 console，也输出到终端
@@ -251,12 +279,20 @@ const context = Object.freeze({
   async getBitableData() {
     try {
       // 检查是否在飞书环境中
-      if (!window.lark) {
+      if (!window.lark && !window.Bitable && !window.bitable) {
         throw new Error('未检测到飞书环境');
       }
       
       // 获取当前应用实例
-      const app = await window.lark.embedApp.getApp();
+      let app;
+      if (window.lark && window.lark.embedApp) {
+        app = await window.lark.embedApp.getApp();
+      } else if (window.Bitable) {
+        app = window.Bitable;
+      } else if (window.bitable) {
+        app = window.bitable;
+      }
+      
       if (!app) {
         throw new Error('获取应用实例失败');
       }
@@ -307,7 +343,7 @@ const context = Object.freeze({
   async updateBitableData(df, fields) {
     try {
       // 检查是否在飞书环境中
-      if (!window.lark) {
+      if (!window.lark && !window.Bitable && !window.bitable) {
         throw new Error('未检测到飞书环境');
       }
       
@@ -317,7 +353,15 @@ const context = Object.freeze({
       }
       
       // 获取当前应用实例
-      const app = await window.lark.embedApp.getApp();
+      let app;
+      if (window.lark && window.lark.embedApp) {
+        app = await window.lark.embedApp.getApp();
+      } else if (window.Bitable) {
+        app = window.Bitable;
+      } else if (window.bitable) {
+        app = window.bitable;
+      }
+      
       if (!app) {
         throw new Error('获取应用实例失败');
       }
