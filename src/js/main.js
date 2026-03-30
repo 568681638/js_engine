@@ -308,13 +308,21 @@ async function getTable(tableName) {
       if (bitable) {
         console.log('bitable 对象已加载');
         
-        // 获取表格元数据列表
-        const tableList = await bitable.base.getTableMetaList();
+        // 获取表格元数据列表和当前选择
+        const [tableList, selection] = await Promise.all([bitable.base.getTableMetaList(), bitable.base.getSelection()]);
         console.log('获取表格列表成功:', tableList && tableList.length);
+        console.log('获取当前选择成功:', !!selection);
         
         if (tableList && tableList.length > 0) {
-          // 查找名称匹配的表格
-          const targetTable = tableList.find(table => table.name === tableName);
+          let targetTable;
+          if (tableName) {
+            // 查找名称匹配的表格
+            targetTable = tableList.find(table => table.name === tableName);
+          } else {
+            // 如果没有提供表格名称，使用当前选择的表格或第一个表格
+            targetTable = tableList.find(table => table.id === selection.tableId) || tableList[0];
+          }
+          
           if (targetTable) {
             console.log('找到表格:', targetTable.name, 'ID:', targetTable.id);
             
@@ -349,19 +357,28 @@ async function getTable(tableName) {
         const app = await base.app.current();
         console.log('获取应用实例成功:', !!app);
         
-        // 获取所有表格
-        const tables = await app.tables.all();
-        console.log('获取表格列表成功:', tables && tables.length);
-        
-        if (tables && tables.length > 0) {
-          // 查找名称匹配的表格
-          const targetTable = tables.find(table => table.name === tableName);
-          if (targetTable) {
-            console.log('找到表格:', targetTable.name);
-            return targetTable;
-          } else {
-            console.error('未找到名称为', tableName, '的表格');
-            throw new Error(`未找到名称为 ${tableName} 的表格`);
+        if (tableName) {
+          // 获取所有表格
+          const tables = await app.tables.all();
+          console.log('获取表格列表成功:', tables && tables.length);
+          
+          if (tables && tables.length > 0) {
+            // 查找名称匹配的表格
+            const targetTable = tables.find(table => table.name === tableName);
+            if (targetTable) {
+              console.log('找到表格:', targetTable.name);
+              return targetTable;
+            } else {
+              console.error('未找到名称为', tableName, '的表格');
+              throw new Error(`未找到名称为 ${tableName} 的表格`);
+            }
+          }
+        } else {
+          // 如果没有提供表格名称，使用当前表格
+          const table = await app.table.current();
+          console.log('获取当前表格成功:', !!table);
+          if (table) {
+            return table;
           }
         }
       } else {
@@ -398,19 +415,28 @@ async function getTable(tableName) {
             const app = await base.app.current();
             console.log('获取应用实例成功:', !!app);
             
-            // 获取所有表格
-            const tables = await app.tables.all();
-            console.log('获取表格列表成功:', tables && tables.length);
-            
-            if (tables && tables.length > 0) {
-              // 查找名称匹配的表格
-              const targetTable = tables.find(table => table.name === tableName);
-              if (targetTable) {
-                console.log('找到表格:', targetTable.name);
-                return targetTable;
-              } else {
-                console.error('未找到名称为', tableName, '的表格');
-                throw new Error(`未找到名称为 ${tableName} 的表格`);
+            if (tableName) {
+              // 获取所有表格
+              const tables = await app.tables.all();
+              console.log('获取表格列表成功:', tables && tables.length);
+              
+              if (tables && tables.length > 0) {
+                // 查找名称匹配的表格
+                const targetTable = tables.find(table => table.name === tableName);
+                if (targetTable) {
+                  console.log('找到表格:', targetTable.name);
+                  return targetTable;
+                } else {
+                  console.error('未找到名称为', tableName, '的表格');
+                  throw new Error(`未找到名称为 ${tableName} 的表格`);
+                }
+              }
+            } else {
+              // 如果没有提供表格名称，使用当前表格
+              const table = await app.table.current();
+              console.log('获取当前表格成功:', !!table);
+              if (table) {
+                return table;
               }
             }
           } catch (e) {
@@ -426,22 +452,37 @@ async function getTable(tableName) {
             console.log('获取应用实例成功:', !!app);
             
             if (app) {
-              // 获取所有表格
-              let tables;
-              if (app.tables && app.tables.all) {
-                tables = await app.tables.all();
-                console.log('获取表格列表成功:', tables && tables.length);
-              }
-              
-              if (tables && tables.length > 0) {
-                // 查找名称匹配的表格
-                const targetTable = tables.find(table => table.name === tableName);
-                if (targetTable) {
-                  console.log('找到表格:', targetTable.name);
-                  return targetTable;
-                } else {
-                  console.error('未找到名称为', tableName, '的表格');
-                  throw new Error(`未找到名称为 ${tableName} 的表格`);
+              if (tableName) {
+                // 获取所有表格
+                let tables;
+                if (app.tables && app.tables.all) {
+                  tables = await app.tables.all();
+                  console.log('获取表格列表成功:', tables && tables.length);
+                }
+                
+                if (tables && tables.length > 0) {
+                  // 查找名称匹配的表格
+                  const targetTable = tables.find(table => table.name === tableName);
+                  if (targetTable) {
+                    console.log('找到表格:', targetTable.name);
+                    return targetTable;
+                  } else {
+                    console.error('未找到名称为', tableName, '的表格');
+                    throw new Error(`未找到名称为 ${tableName} 的表格`);
+                  }
+                }
+              } else {
+                // 如果没有提供表格名称，使用当前表格
+                let table;
+                if (app.table && app.table.current) {
+                  table = await app.table.current();
+                  console.log('获取当前表格成功:', !!table);
+                } else if (app.getActiveTable) {
+                  table = await app.getActiveTable();
+                  console.log('获取当前表格成功:', !!table);
+                }
+                if (table) {
+                  return table;
                 }
               }
             }
