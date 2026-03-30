@@ -507,7 +507,8 @@ async function getTable(tableName) {
 async function table2dict(table) {
   try {
     if (!table) {
-      throw new Error('请传入表格实例');
+      console.error('请传入表格实例');
+      return {};
     }
     
     console.log('开始将表格转换为字典');
@@ -518,36 +519,42 @@ async function table2dict(table) {
     let records;
     try {
       if (table.records && table.records.all) {
+        console.log('尝试使用 table.records.all()');
         records = await table.records.all();
         console.log('获取记录成功:', records && records.length);
       } else if (table.getRecords) {
+        console.log('尝试使用 table.getRecords()');
         records = await table.getRecords();
         console.log('获取记录成功 (getRecords):', records && records.length);
       } else {
         console.log('表格实例没有 records.all 或 getRecords 方法');
-        throw new Error('表格实例没有获取记录的方法');
+        return {};
       }
     } catch (e) {
       console.error('获取记录失败:', e);
-      throw e;
+      console.error('获取记录错误堆栈:', e.stack);
+      return {};
     }
     
     // 尝试获取所有字段
     let fields;
     try {
       if (table.fields && table.fields.all) {
+        console.log('尝试使用 table.fields.all()');
         fields = await table.fields.all();
         console.log('获取字段成功:', fields && fields.length);
       } else if (table.getFields) {
+        console.log('尝试使用 table.getFields()');
         fields = await table.getFields();
         console.log('获取字段成功 (getFields):', fields && fields.length);
       } else {
         console.log('表格实例没有 fields.all 或 getFields 方法');
-        throw new Error('表格实例没有获取字段的方法');
+        return {};
       }
     } catch (e) {
       console.error('获取字段失败:', e);
-      throw e;
+      console.error('获取字段错误堆栈:', e.stack);
+      return {};
     }
     
     if (records && records.length > 0 && fields) {
@@ -599,7 +606,7 @@ async function table2dict(table) {
   } catch (error) {
     console.error('转换表格为字典失败:', error);
     console.error('错误堆栈:', error.stack);
-    throw error;
+    return {};
   }
 }
 
