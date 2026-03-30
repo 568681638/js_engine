@@ -276,920 +276,330 @@ const customConsole = {
   error: (...args) => print('[ERROR]', ...args),
 };
 
+// 调试：输出所有可能的飞书相关全局对象
+function debugFeishuEnv() {
+  console.log('飞书环境检测:', {
+    lark: !!window.lark,
+    Base: !!window.Base,
+    'lark-base': !!window['lark-base'],
+    app: !!window.app,
+    $app: !!window.$app,
+    larkin: !!window.larkin,
+    Bitable: !!window.Bitable,
+    bitable: !!window.bitable,
+    __LARK__: !!window.__LARK__,
+    FEISHU: !!window.FEISHU,
+    feishu: !!window.feishu,
+    windowKeys: Object.keys(window).filter(key => ['lark', 'Base', 'app', 'Bitable', 'bitable'].some(prefix => key.toLowerCase().includes(prefix)))
+  });
+}
+
+
+
+// 根据表格名称获取表格实例
+async function getTable(tableName) {
+  try {
+    // 首先输出调试信息
+    debugFeishuEnv();
+    
+    // 尝试使用导入的 bitable 对象
+    console.log('尝试使用导入的 bitable 对象获取表格');
+    try {
+      if (bitable) {
+        console.log('bitable 对象已加载');
+        
+        // 获取表格元数据列表
+        const tableList = await bitable.base.getTableMetaList();
+        console.log('获取表格列表成功:', tableList && tableList.length);
+        
+        if (tableList && tableList.length > 0) {
+          // 查找名称匹配的表格
+          const targetTable = tableList.find(table => table.name === tableName);
+          if (targetTable) {
+            console.log('找到表格:', targetTable.name, 'ID:', targetTable.id);
+            
+            // 根据表格ID获取表格实例
+            const table = await bitable.base.getTableById(targetTable.id);
+            console.log('获取表格实例成功:', !!table);
+            return table;
+          } else {
+            console.error('未找到名称为', tableName, '的表格');
+            throw new Error(`未找到名称为 ${tableName} 的表格`);
+          }
+        }
+      } else {
+        console.log('bitable 对象未加载');
+      }
+    } catch (e) {
+      console.error('使用 bitable 对象失败:', e);
+      throw e;
+    }
+    
+    // 尝试使用 window.BaseOpen（兼容旧版本）
+    console.log('尝试使用 window.BaseOpen 获取表格');
+    try {
+      if (window.BaseOpen) {
+        console.log('window.BaseOpen 已加载');
+        
+        // 初始化 SDK
+        const base = new window.BaseOpen();
+        console.log('BaseOpen 实例创建成功');
+        
+        // 获取当前应用
+        const app = await base.app.current();
+        console.log('获取应用实例成功:', !!app);
+        
+        // 获取所有表格
+        const tables = await app.tables.all();
+        console.log('获取表格列表成功:', tables && tables.length);
+        
+        if (tables && tables.length > 0) {
+          // 查找名称匹配的表格
+          const targetTable = tables.find(table => table.name === tableName);
+          if (targetTable) {
+            console.log('找到表格:', targetTable.name);
+            return targetTable;
+          } else {
+            console.error('未找到名称为', tableName, '的表格');
+            throw new Error(`未找到名称为 ${tableName} 的表格`);
+          }
+        }
+      } else {
+        console.log('window.BaseOpen 未加载');
+      }
+    } catch (e) {
+      console.error('使用 window.BaseOpen 失败:', e);
+      throw e;
+    }
+    
+    // 尝试直接使用 top 窗口的对象
+    console.log('尝试访问 top 窗口获取表格');
+    try {
+      if (window.top && window.top !== window) {
+        console.log('top 窗口存在');
+        
+        // 尝试从 top 窗口获取飞书相关对象
+        const topBase = window.top.Base || window.top['lark-base'];
+        const topBaseOpen = window.top.BaseOpen;
+        
+        console.log('top 窗口对象:', {
+          Base: !!topBase,
+          BaseOpen: !!topBaseOpen
+        });
+        
+        // 尝试使用 top 窗口的 BaseOpen
+        if (topBaseOpen) {
+          console.log('使用 top.BaseOpen');
+          try {
+            const base = new topBaseOpen();
+            console.log('BaseOpen 实例创建成功');
+            
+            // 获取当前应用
+            const app = await base.app.current();
+            console.log('获取应用实例成功:', !!app);
+            
+            // 获取所有表格
+            const tables = await app.tables.all();
+            console.log('获取表格列表成功:', tables && tables.length);
+            
+            if (tables && tables.length > 0) {
+              // 查找名称匹配的表格
+              const targetTable = tables.find(table => table.name === tableName);
+              if (targetTable) {
+                console.log('找到表格:', targetTable.name);
+                return targetTable;
+              } else {
+                console.error('未找到名称为', tableName, '的表格');
+                throw new Error(`未找到名称为 ${tableName} 的表格`);
+              }
+            }
+          } catch (e) {
+            console.error('使用 top.BaseOpen 失败:', e);
+          }
+        }
+        
+        // 尝试使用 top 窗口的 Base
+        if (topBase) {
+          console.log('使用 top.Base');
+          try {
+            const app = await topBase.app.current();
+            console.log('获取应用实例成功:', !!app);
+            
+            if (app) {
+              // 获取所有表格
+              let tables;
+              if (app.tables && app.tables.all) {
+                tables = await app.tables.all();
+                console.log('获取表格列表成功:', tables && tables.length);
+              }
+              
+              if (tables && tables.length > 0) {
+                // 查找名称匹配的表格
+                const targetTable = tables.find(table => table.name === tableName);
+                if (targetTable) {
+                  console.log('找到表格:', targetTable.name);
+                  return targetTable;
+                } else {
+                  console.error('未找到名称为', tableName, '的表格');
+                  throw new Error(`未找到名称为 ${tableName} 的表格`);
+                }
+              }
+            }
+          } catch (e) {
+            console.error('使用 top.Base 失败:', e);
+          }
+        }
+      }
+    } catch (e) {
+      console.error('访问 top 窗口失败:', e);
+    }
+    
+    // 如果所有方法都失败，抛出错误
+    throw new Error('未检测到飞书环境或无法获取表格');
+  } catch (error) {
+    console.error('获取表格失败:', error);
+    throw error;
+  }
+}
+
+// 将表格实例转换为字典对象（可用于Danfo.js初始化DataFrame）
+async function table2dict(table) {
+  try {
+    if (!table) {
+      throw new Error('请传入表格实例');
+    }
+    
+    console.log('开始将表格转换为字典');
+    
+    // 获取所有记录
+    const records = await table.records.all();
+    console.log('获取记录成功:', records && records.length);
+    
+    // 获取所有字段
+    const fields = await table.fields.all();
+    console.log('获取字段成功:', fields && fields.length);
+    
+    if (records && records.length > 0 && fields) {
+      const fieldMap = {};
+      fields.forEach(field => {
+        fieldMap[field.id] = field.name;
+      });
+      console.log('字段映射:', fieldMap);
+      
+      // 转换为字典形式
+      const data = {};
+      Object.values(fieldMap).forEach(fieldName => {
+        data[fieldName] = [];
+      });
+      
+      // 填充数据
+      records.forEach(record => {
+        Object.entries(record.values).forEach(([fieldId, value]) => {
+          const fieldName = fieldMap[fieldId];
+          if (fieldName) {
+            data[fieldName].push(value !== undefined ? value : null);
+          }
+        });
+      });
+      
+      console.log('转换后的数据:', data);
+      return data;
+    } else {
+      console.log('表格无数据或字段');
+      return {};
+    }
+  } catch (error) {
+    console.error('转换表格为字典失败:', error);
+    throw error;
+  }
+}
+
+// 使用 DataFrame 更新指定表格的指定字段
+async function setTable(table, df, fields) {
+  try {
+    // 检查 df 是否为 Danfo.js DataFrame
+    if (!df || typeof df.toJSON !== 'function') {
+      throw new Error('请传入 Danfo.js DataFrame');
+    }
+    
+    // 检查表格实例
+    if (!table) {
+      throw new Error('请传入表格实例');
+    }
+    
+    // 首先输出调试信息
+    debugFeishuEnv();
+    
+    console.log('开始更新表格数据');
+    
+    // 获取所有记录
+    const records = await table.records.all();
+    console.log('获取记录成功:', records && records.length);
+    
+    // 获取所有字段
+    const tableFields = await table.fields.all();
+    console.log('获取字段成功:', tableFields && tableFields.length);
+    
+    if (records && records.length > 0 && tableFields) {
+      const fieldMap = {};
+      tableFields.forEach(field => {
+        fieldMap[field.name] = field.id;
+      });
+      console.log('字段映射:', fieldMap);
+      
+      // 转换 DataFrame 为 JSON
+      const dfJson = df.toJSON();
+      
+      // 确定要更新的字段
+      const fieldsToUpdate = fields || Object.keys(dfJson);
+      
+      // 验证字段是否存在
+      fieldsToUpdate.forEach(fieldName => {
+        if (!fieldMap[fieldName]) {
+          throw new Error(`字段 ${fieldName} 在表格中不存在`);
+        }
+      });
+      
+      // 准备更新数据
+      const updatePromises = [];
+      records.forEach((record, index) => {
+        if (index < df.shape[0]) {
+          const updates = {};
+          fieldsToUpdate.forEach(fieldName => {
+            const fieldId = fieldMap[fieldName];
+            if (fieldId) {
+              updates[fieldId] = dfJson[fieldName][index];
+            }
+          });
+          if (Object.keys(updates).length > 0) {
+            updatePromises.push(record.update(updates));
+          }
+        }
+      });
+      
+      // 执行更新
+      await Promise.all(updatePromises);
+      console.log('更新成功');
+      return true;
+    } else {
+      console.log('表格无数据或字段');
+      return false;
+    }
+  } catch (error) {
+    console.error('更新表格数据失败:', error);
+    return false;
+  }
+}
+
 // 执行上下文
 const context = Object.freeze({
   console: customConsole,
   print, // 直接把 Python 风格 print 暴露出去
   dfd: window.dfd, // Danfo.js
-  // 调试：输出所有可能的飞书相关全局对象
-  debugFeishuEnv() {
-    console.log('飞书环境检测:', {
-      lark: !!window.lark,
-      Base: !!window.Base,
-      'lark-base': !!window['lark-base'],
-      app: !!window.app,
-      $app: !!window.$app,
-      larkin: !!window.larkin,
-      Bitable: !!window.Bitable,
-      bitable: !!window.bitable,
-      __LARK__: !!window.__LARK__,
-      FEISHU: !!window.FEISHU,
-      feishu: !!window.feishu,
-      windowKeys: Object.keys(window).filter(key => ['lark', 'Base', 'app', 'Bitable', 'bitable'].some(prefix => key.toLowerCase().includes(prefix)))
-    });
-  },
-  // 获取多维表格数据并转换为 Danfo.js 可读取的字典形式
-  async getBitableData() {
-    try {
-      // 首先输出调试信息
-      this.debugFeishuEnv();
-      
-      // 尝试使用导入的 bitable 对象
-      console.log('尝试使用导入的 bitable 对象');
-      try {
-        if (bitable) {
-          console.log('bitable 对象已加载');
-          
-          // 获取当前应用
-          const app = await bitable.app.current();
-          console.log('获取应用实例成功:', !!app);
-          
-          // 获取当前表格
-          const table = await app.table.current();
-          console.log('获取表格成功:', !!table);
-          
-          // 获取所有记录
-          const records = await table.records.all();
-          console.log('获取记录成功:', records && records.length);
-          
-          // 获取所有字段
-          const fields = await table.fields.all();
-          console.log('获取字段成功:', fields && fields.length);
-          
-          if (records && records.length > 0 && fields) {
-            const fieldMap = {};
-            fields.forEach(field => {
-              fieldMap[field.id] = field.name;
-            });
-            console.log('字段映射:', fieldMap);
-            
-            // 转换为字典形式
-            const data = {};
-            Object.values(fieldMap).forEach(fieldName => {
-              data[fieldName] = [];
-            });
-            
-            // 填充数据
-            records.forEach(record => {
-              Object.entries(record.values).forEach(([fieldId, value]) => {
-                const fieldName = fieldMap[fieldId];
-                if (fieldName) {
-                  data[fieldName].push(value !== undefined ? value : null);
-                }
-              });
-            });
-            
-            console.log('转换后的数据:', data);
-            return data;
-          }
-        } else {
-          console.log('bitable 对象未加载');
-        }
-      } catch (e) {
-        console.error('使用 bitable 对象失败:', e);
-      }
-      
-      // 尝试使用 window.BaseOpen（兼容旧版本）
-      console.log('尝试使用 window.BaseOpen');
-      try {
-        if (window.BaseOpen) {
-          console.log('window.BaseOpen 已加载');
-          
-          // 初始化 SDK
-          const base = new window.BaseOpen();
-          console.log('BaseOpen 实例创建成功');
-          
-          // 获取当前应用
-          const app = await base.app.current();
-          console.log('获取应用实例成功:', !!app);
-          
-          // 获取当前表格
-          const table = await app.table.current();
-          console.log('获取表格成功:', !!table);
-          
-          // 获取所有记录
-          const records = await table.records.all();
-          console.log('获取记录成功:', records && records.length);
-          
-          // 获取所有字段
-          const fields = await table.fields.all();
-          console.log('获取字段成功:', fields && fields.length);
-          
-          if (records && records.length > 0 && fields) {
-            const fieldMap = {};
-            fields.forEach(field => {
-              fieldMap[field.id] = field.name;
-            });
-            console.log('字段映射:', fieldMap);
-            
-            // 转换为字典形式
-            const data = {};
-            Object.values(fieldMap).forEach(fieldName => {
-              data[fieldName] = [];
-            });
-            
-            // 填充数据
-            records.forEach(record => {
-              Object.entries(record.values).forEach(([fieldId, value]) => {
-                const fieldName = fieldMap[fieldId];
-                if (fieldName) {
-                  data[fieldName].push(value !== undefined ? value : null);
-                }
-              });
-            });
-            
-            console.log('转换后的数据:', data);
-            return data;
-          }
-        } else {
-          console.log('window.BaseOpen 未加载');
-        }
-      } catch (e) {
-        console.error('使用 window.BaseOpen 失败:', e);
-      }
-      
-      // 尝试直接使用 top 窗口的对象
-      console.log('尝试访问 top 窗口');
-      try {
-        if (window.top && window.top !== window) {
-          console.log('top 窗口存在');
-          console.log('top 窗口的 windowKeys:', Object.keys(window.top).filter(key => ['lark', 'Base', 'app', 'Bitable', 'bitable'].some(prefix => key.toLowerCase().includes(prefix))))
-          
-          // 尝试从 top 窗口获取飞书相关对象
-          const topLark = window.top.lark;
-          const topBase = window.top.Base || window.top['lark-base'];
-          const topApp = window.top.app || window.top.$app || window.top.larkin;
-          const topBitable = window.top.Bitable || window.top.bitable;
-          const topBaseOpen = window.top.BaseOpen;
-          
-          console.log('top 窗口对象:', {
-            lark: !!topLark,
-            Base: !!topBase,
-            BaseOpen: !!topBaseOpen,
-            app: !!topApp,
-            Bitable: !!topBitable
-          });
-          
-          // 尝试使用 top 窗口的 BaseOpen
-          if (topBaseOpen) {
-            console.log('使用 top.BaseOpen');
-            try {
-              const base = new topBaseOpen();
-              console.log('BaseOpen 实例创建成功');
-              
-              // 获取当前应用
-              const app = await base.app.current();
-              console.log('获取应用实例成功:', !!app);
-              
-              // 获取当前表格
-              const table = await app.table.current();
-              console.log('获取表格成功:', !!table);
-              
-              // 获取所有记录
-              const records = await table.records.all();
-              console.log('获取记录成功:', records && records.length);
-              
-              // 获取所有字段
-              const fields = await table.fields.all();
-              console.log('获取字段成功:', fields && fields.length);
-              
-              if (records && records.length > 0 && fields) {
-                const fieldMap = {};
-                fields.forEach(field => {
-                  fieldMap[field.id] = field.name;
-                });
-                console.log('字段映射:', fieldMap);
-                
-                // 转换为字典形式
-                const data = {};
-                Object.values(fieldMap).forEach(fieldName => {
-                  data[fieldName] = [];
-                });
-                
-                // 填充数据
-                records.forEach(record => {
-                  Object.entries(record.values).forEach(([fieldId, value]) => {
-                    const fieldName = fieldMap[fieldId];
-                    if (fieldName) {
-                      data[fieldName].push(value !== undefined ? value : null);
-                    }
-                  });
-                });
-                
-                console.log('转换后的数据:', data);
-                return data;
-              }
-            } catch (e) {
-              console.error('使用 top.BaseOpen 失败:', e);
-            }
-          }
-          
-          // 尝试使用 top 窗口的对象
-          if (topBase) {
-            console.log('使用 top.Base');
-            try {
-              const app = await topBase.app.current();
-              console.log('获取应用实例成功:', !!app);
-              
-              if (app) {
-                // 获取当前表格
-                let table;
-                if (app.table && app.table.current) {
-                  table = await app.table.current();
-                  console.log('获取表格成功:', !!table);
-                } else if (app.getActiveTable) {
-                  table = await app.getActiveTable();
-                  console.log('获取表格成功:', !!table);
-                }
-                
-                if (table) {
-                  // 获取所有记录
-                  let records;
-                  if (table.records && table.records.all) {
-                    records = await table.records.all();
-                    console.log('获取记录成功:', records && records.length);
-                  } else if (table.getRecords) {
-                    records = await table.getRecords();
-                    console.log('获取记录成功:', records && records.length);
-                  }
-                  
-                  if (records && records.length > 0) {
-                    // 获取所有字段
-                    let fields;
-                    if (table.fields && table.fields.all) {
-                      fields = await table.fields.all();
-                      console.log('获取字段成功:', fields && fields.length);
-                    } else if (table.getFields) {
-                      fields = await table.getFields();
-                      console.log('获取字段成功:', fields && fields.length);
-                    }
-                    
-                    if (fields) {
-                      const fieldMap = {};
-                      fields.forEach(field => {
-                        fieldMap[field.id] = field.name;
-                      });
-                      console.log('字段映射:', fieldMap);
-                      
-                      // 转换为字典形式
-                      const data = {};
-                      Object.values(fieldMap).forEach(fieldName => {
-                        data[fieldName] = [];
-                      });
-                      
-                      // 填充数据
-                      records.forEach(record => {
-                        const recordValues = record.values || record.fields;
-                        Object.entries(recordValues).forEach(([fieldId, value]) => {
-                          const fieldName = fieldMap[fieldId];
-                          if (fieldName) {
-                            data[fieldName].push(value !== undefined ? value : null);
-                          }
-                        });
-                      });
-                      
-                      console.log('转换后的数据:', data);
-                      return data;
-                    }
-                  }
-                }
-              }
-            } catch (e) {
-              console.error('使用 top.Base 失败:', e);
-            }
-          }
-          
-          // 尝试使用 top.lark
-          if (topLark && topLark.embedApp) {
-            console.log('使用 top.lark.embedApp');
-            try {
-              const app = await topLark.embedApp.getApp();
-              console.log('获取应用实例成功:', !!app);
-              
-              if (app) {
-                // 获取当前表格
-                let table;
-                if (app.table && app.table.current) {
-                  table = await app.table.current();
-                  console.log('获取表格成功:', !!table);
-                } else if (app.getActiveTable) {
-                  table = await app.getActiveTable();
-                  console.log('获取表格成功:', !!table);
-                }
-                
-                if (table) {
-                  // 获取所有记录
-                  let records;
-                  if (table.records && table.records.all) {
-                    records = await table.records.all();
-                    console.log('获取记录成功:', records && records.length);
-                  } else if (table.getRecords) {
-                    records = await table.getRecords();
-                    console.log('获取记录成功:', records && records.length);
-                  }
-                  
-                  if (records && records.length > 0) {
-                    // 获取所有字段
-                    let fields;
-                    if (table.fields && table.fields.all) {
-                      fields = await table.fields.all();
-                      console.log('获取字段成功:', fields && fields.length);
-                    } else if (table.getFields) {
-                      fields = await table.getFields();
-                      console.log('获取字段成功:', fields && fields.length);
-                    }
-                    
-                    if (fields) {
-                      const fieldMap = {};
-                      fields.forEach(field => {
-                        fieldMap[field.id] = field.name;
-                      });
-                      console.log('字段映射:', fieldMap);
-                      
-                      // 转换为字典形式
-                      const data = {};
-                      Object.values(fieldMap).forEach(fieldName => {
-                        data[fieldName] = [];
-                      });
-                      
-                      // 填充数据
-                      records.forEach(record => {
-                        const recordValues = record.values || record.fields;
-                        Object.entries(recordValues).forEach(([fieldId, value]) => {
-                          const fieldName = fieldMap[fieldId];
-                          if (fieldName) {
-                            data[fieldName].push(value !== undefined ? value : null);
-                          }
-                        });
-                      });
-                      
-                      console.log('转换后的数据:', data);
-                      return data;
-                    }
-                  }
-                }
-              }
-            } catch (e) {
-              console.error('使用 top.lark.embedApp 失败:', e);
-            }
-          }
-        }
-      } catch (e) {
-        console.error('访问 top 窗口失败:', e);
-      }
-      
-      // 尝试使用 iframe 通信获取数据
-      console.log('尝试使用 iframe 通信');
-      try {
-        // 向父窗口发送消息
-        window.parent.postMessage({ type: 'GET_BITABLE_DATA' }, '*');
-        
-        // 等待父窗口的响应
-        return new Promise((resolve, reject) => {
-          const handleMessage = (event) => {
-            if (event.data && event.data.type === 'BITABLE_DATA') {
-              console.log('收到父窗口的表格数据:', event.data.data);
-              window.removeEventListener('message', handleMessage);
-              resolve(event.data.data);
-            } else if (event.data && event.data.type === 'BITABLE_ERROR') {
-              console.error('收到父窗口的错误:', event.data.error);
-              window.removeEventListener('message', handleMessage);
-              reject(new Error(event.data.error));
-            }
-          };
-          
-          window.addEventListener('message', handleMessage);
-          
-          // 超时处理
-          setTimeout(() => {
-            window.removeEventListener('message', handleMessage);
-            reject(new Error('获取表格数据超时'));
-          }, 5000);
-        });
-      } catch (e) {
-        console.error('使用 iframe 通信失败:', e);
-      }
-      
-      // 如果所有方法都失败，返回模拟数据
-      console.log('返回模拟数据');
-      return {
-        '姓名': ['张三', '李四', '王五'],
-        '年龄': [25, 30, 35],
-        '性别': ['男', '女', '男'],
-        '部门': ['技术部', '市场部', '销售部']
-      };
-    } catch (error) {
-      console.error('获取多维表格数据失败:', error);
-      // 返回模拟数据，以便用户可以继续使用其他功能
-      return {
-        '姓名': ['张三', '李四', '王五'],
-        '年龄': [25, 30, 35],
-        '性别': ['男', '女', '男'],
-        '部门': ['技术部', '市场部', '销售部']
-      };
-    }
-  },
-  // 使用 DataFrame 更新多维表格的指定字段
-  async updateBitableData(df, fields) {
-    try {
-      // 检查 df 是否为 Danfo.js DataFrame
-      if (!df || typeof df.toJSON !== 'function') {
-        throw new Error('请传入 Danfo.js DataFrame');
-      }
-      
-      // 首先输出调试信息
-      this.debugFeishuEnv();
-      
-      // 尝试使用导入的 bitable 对象
-      console.log('尝试使用导入的 bitable 对象进行更新');
-      try {
-        if (bitable) {
-          console.log('bitable 对象已加载');
-          
-          // 获取当前应用
-          const app = await bitable.app.current();
-          console.log('获取应用实例成功:', !!app);
-          
-          // 获取当前表格
-          const table = await app.table.current();
-          console.log('获取表格成功:', !!table);
-          
-          // 获取所有记录
-          const records = await table.records.all();
-          console.log('获取记录成功:', records && records.length);
-          
-          // 获取所有字段
-          const tableFields = await table.fields.all();
-          console.log('获取字段成功:', tableFields && tableFields.length);
-          
-          if (records && records.length > 0 && tableFields) {
-            const fieldMap = {};
-            tableFields.forEach(field => {
-              fieldMap[field.name] = field.id;
-            });
-            console.log('字段映射:', fieldMap);
-            
-            // 转换 DataFrame 为 JSON
-            const dfJson = df.toJSON();
-            
-            // 确定要更新的字段
-            const fieldsToUpdate = fields || Object.keys(dfJson);
-            
-            // 验证字段是否存在
-            fieldsToUpdate.forEach(fieldName => {
-              if (!fieldMap[fieldName]) {
-                throw new Error(`字段 ${fieldName} 在表格中不存在`);
-              }
-            });
-            
-            // 准备更新数据
-            const updatePromises = [];
-            records.forEach((record, index) => {
-              if (index < df.shape[0]) {
-                const updates = {};
-                fieldsToUpdate.forEach(fieldName => {
-                  const fieldId = fieldMap[fieldName];
-                  if (fieldId) {
-                    updates[fieldId] = dfJson[fieldName][index];
-                  }
-                });
-                if (Object.keys(updates).length > 0) {
-                  updatePromises.push(record.update(updates));
-                }
-              }
-            });
-            
-            // 执行更新
-            await Promise.all(updatePromises);
-            console.log('更新成功');
-            return true;
-          }
-        } else {
-          console.log('bitable 对象未加载');
-        }
-      } catch (e) {
-        console.error('使用 bitable 对象失败:', e);
-      }
-      
-      // 尝试使用 window.BaseOpen（兼容旧版本）
-      console.log('尝试使用 window.BaseOpen 进行更新');
-      try {
-        if (window.BaseOpen) {
-          console.log('window.BaseOpen 已加载');
-          
-          // 初始化 SDK
-          const base = new window.BaseOpen();
-          console.log('BaseOpen 实例创建成功');
-          
-          // 获取当前应用
-          const app = await base.app.current();
-          console.log('获取应用实例成功:', !!app);
-          
-          // 获取当前表格
-          const table = await app.table.current();
-          console.log('获取表格成功:', !!table);
-          
-          // 获取所有记录
-          const records = await table.records.all();
-          console.log('获取记录成功:', records && records.length);
-          
-          // 获取所有字段
-          const tableFields = await table.fields.all();
-          console.log('获取字段成功:', tableFields && tableFields.length);
-          
-          if (records && records.length > 0 && tableFields) {
-            const fieldMap = {};
-            tableFields.forEach(field => {
-              fieldMap[field.name] = field.id;
-            });
-            console.log('字段映射:', fieldMap);
-            
-            // 转换 DataFrame 为 JSON
-            const dfJson = df.toJSON();
-            
-            // 确定要更新的字段
-            const fieldsToUpdate = fields || Object.keys(dfJson);
-            
-            // 验证字段是否存在
-            fieldsToUpdate.forEach(fieldName => {
-              if (!fieldMap[fieldName]) {
-                throw new Error(`字段 ${fieldName} 在表格中不存在`);
-              }
-            });
-            
-            // 准备更新数据
-            const updatePromises = [];
-            records.forEach((record, index) => {
-              if (index < df.shape[0]) {
-                const updates = {};
-                fieldsToUpdate.forEach(fieldName => {
-                  const fieldId = fieldMap[fieldName];
-                  if (fieldId) {
-                    updates[fieldId] = dfJson[fieldName][index];
-                  }
-                });
-                if (Object.keys(updates).length > 0) {
-                  updatePromises.push(record.update(updates));
-                }
-              }
-            });
-            
-            // 执行更新
-            await Promise.all(updatePromises);
-            console.log('更新成功');
-            return true;
-          }
-        } else {
-          console.log('window.BaseOpen 未加载');
-        }
-      } catch (e) {
-        console.error('使用 window.BaseOpen 失败:', e);
-      }
-      
-      // 尝试直接使用 top 窗口的对象
-      console.log('尝试访问 top 窗口进行更新');
-      try {
-        if (window.top && window.top !== window) {
-          console.log('top 窗口存在');
-          
-          // 尝试从 top 窗口获取飞书相关对象
-          const topLark = window.top.lark;
-          const topBase = window.top.Base || window.top['lark-base'];
-          const topApp = window.top.app || window.top.$app || window.top.larkin;
-          const topBitable = window.top.Bitable || window.top.bitable;
-          const topBaseOpen = window.top.BaseOpen;
-          
-          console.log('top 窗口对象:', {
-            lark: !!topLark,
-            Base: !!topBase,
-            BaseOpen: !!topBaseOpen,
-            app: !!topApp,
-            Bitable: !!topBitable
-          });
-          
-          // 尝试使用 top 窗口的 BaseOpen
-          if (topBaseOpen) {
-            console.log('使用 top.BaseOpen 进行更新');
-            try {
-              const base = new topBaseOpen();
-              console.log('BaseOpen 实例创建成功');
-              
-              // 获取当前应用
-              const app = await base.app.current();
-              console.log('获取应用实例成功:', !!app);
-              
-              // 获取当前表格
-              const table = await app.table.current();
-              console.log('获取表格成功:', !!table);
-              
-              // 获取所有记录
-              const records = await table.records.all();
-              console.log('获取记录成功:', records && records.length);
-              
-              // 获取所有字段
-              const tableFields = await table.fields.all();
-              console.log('获取字段成功:', tableFields && tableFields.length);
-              
-              if (records && records.length > 0 && tableFields) {
-                const fieldMap = {};
-                tableFields.forEach(field => {
-                  fieldMap[field.name] = field.id;
-                });
-                console.log('字段映射:', fieldMap);
-                
-                // 转换 DataFrame 为 JSON
-                const dfJson = df.toJSON();
-                
-                // 确定要更新的字段
-                const fieldsToUpdate = fields || Object.keys(dfJson);
-                
-                // 验证字段是否存在
-                fieldsToUpdate.forEach(fieldName => {
-                  if (!fieldMap[fieldName]) {
-                    throw new Error(`字段 ${fieldName} 在表格中不存在`);
-                  }
-                });
-                
-                // 准备更新数据
-                const updatePromises = [];
-                records.forEach((record, index) => {
-                  if (index < df.shape[0]) {
-                    const updates = {};
-                    fieldsToUpdate.forEach(fieldName => {
-                      const fieldId = fieldMap[fieldName];
-                      if (fieldId) {
-                        updates[fieldId] = dfJson[fieldName][index];
-                      }
-                    });
-                    if (Object.keys(updates).length > 0) {
-                      updatePromises.push(record.update(updates));
-                    }
-                  }
-                });
-                
-                // 执行更新
-                await Promise.all(updatePromises);
-                console.log('更新成功');
-                return true;
-              }
-            } catch (e) {
-              console.error('使用 top.BaseOpen 失败:', e);
-            }
-          }
-          
-          // 尝试使用 top 窗口的对象
-          if (topBase) {
-            console.log('使用 top.Base 进行更新');
-            try {
-              const app = await topBase.app.current();
-              console.log('获取应用实例成功:', !!app);
-              
-              if (app) {
-                // 获取当前表格
-                let table;
-                if (app.table && app.table.current) {
-                  table = await app.table.current();
-                  console.log('获取表格成功:', !!table);
-                } else if (app.getActiveTable) {
-                  table = await app.getActiveTable();
-                  console.log('获取表格成功:', !!table);
-                }
-                
-                if (table) {
-                  // 获取所有记录
-                  let records;
-                  if (table.records && table.records.all) {
-                    records = await table.records.all();
-                    console.log('获取记录成功:', records && records.length);
-                  } else if (table.getRecords) {
-                    records = await table.getRecords();
-                    console.log('获取记录成功:', records && records.length);
-                  }
-                  
-                  if (records && records.length > 0) {
-                    // 获取所有字段
-                    let tableFields;
-                    if (table.fields && table.fields.all) {
-                      tableFields = await table.fields.all();
-                      console.log('获取字段成功:', tableFields && tableFields.length);
-                    } else if (table.getFields) {
-                      tableFields = await table.getFields();
-                      console.log('获取字段成功:', tableFields && tableFields.length);
-                    }
-                    
-                    if (tableFields) {
-                      const fieldMap = {};
-                      tableFields.forEach(field => {
-                        fieldMap[field.name] = field.id;
-                      });
-                      console.log('字段映射:', fieldMap);
-                      
-                      // 转换 DataFrame 为 JSON
-                      const dfJson = df.toJSON();
-                      
-                      // 确定要更新的字段
-                      const fieldsToUpdate = fields || Object.keys(dfJson);
-                      
-                      // 验证字段是否存在
-                      fieldsToUpdate.forEach(fieldName => {
-                        if (!fieldMap[fieldName]) {
-                          throw new Error(`字段 ${fieldName} 在表格中不存在`);
-                        }
-                      });
-                      
-                      // 准备更新数据
-                      const updatePromises = [];
-                      records.forEach((record, index) => {
-                        if (index < df.shape[0]) {
-                          const updates = {};
-                          fieldsToUpdate.forEach(fieldName => {
-                            const fieldId = fieldMap[fieldName];
-                            if (fieldId) {
-                              updates[fieldId] = dfJson[fieldName][index];
-                            }
-                          });
-                          if (Object.keys(updates).length > 0) {
-                            if (record.update) {
-                              updatePromises.push(record.update(updates));
-                            } else if (table.updateRecord) {
-                              updatePromises.push(table.updateRecord(record.id, updates));
-                            }
-                          }
-                        }
-                      });
-                      
-                      // 执行更新
-                      await Promise.all(updatePromises);
-                      console.log('更新成功');
-                      return true;
-                    }
-                  }
-                }
-              }
-            } catch (e) {
-              console.error('使用 top.Base 失败:', e);
-            }
-          }
-          
-          // 尝试使用 top.lark
-          if (topLark && topLark.embedApp) {
-            console.log('使用 top.lark.embedApp 进行更新');
-            try {
-              const app = await topLark.embedApp.getApp();
-              console.log('获取应用实例成功:', !!app);
-              
-              if (app) {
-                // 获取当前表格
-                let table;
-                if (app.table && app.table.current) {
-                  table = await app.table.current();
-                  console.log('获取表格成功:', !!table);
-                } else if (app.getActiveTable) {
-                  table = await app.getActiveTable();
-                  console.log('获取表格成功:', !!table);
-                }
-                
-                if (table) {
-                  // 获取所有记录
-                  let records;
-                  if (table.records && table.records.all) {
-                    records = await table.records.all();
-                    console.log('获取记录成功:', records && records.length);
-                  } else if (table.getRecords) {
-                    records = await table.getRecords();
-                    console.log('获取记录成功:', records && records.length);
-                  }
-                  
-                  if (records && records.length > 0) {
-                    // 获取所有字段
-                    let tableFields;
-                    if (table.fields && table.fields.all) {
-                      tableFields = await table.fields.all();
-                      console.log('获取字段成功:', tableFields && tableFields.length);
-                    } else if (table.getFields) {
-                      tableFields = await table.getFields();
-                      console.log('获取字段成功:', tableFields && tableFields.length);
-                    }
-                    
-                    if (tableFields) {
-                      const fieldMap = {};
-                      tableFields.forEach(field => {
-                        fieldMap[field.name] = field.id;
-                      });
-                      console.log('字段映射:', fieldMap);
-                      
-                      // 转换 DataFrame 为 JSON
-                      const dfJson = df.toJSON();
-                      
-                      // 确定要更新的字段
-                      const fieldsToUpdate = fields || Object.keys(dfJson);
-                      
-                      // 验证字段是否存在
-                      fieldsToUpdate.forEach(fieldName => {
-                        if (!fieldMap[fieldName]) {
-                          throw new Error(`字段 ${fieldName} 在表格中不存在`);
-                        }
-                      });
-                      
-                      // 准备更新数据
-                      const updatePromises = [];
-                      records.forEach((record, index) => {
-                        if (index < df.shape[0]) {
-                          const updates = {};
-                          fieldsToUpdate.forEach(fieldName => {
-                            const fieldId = fieldMap[fieldName];
-                            if (fieldId) {
-                              updates[fieldId] = dfJson[fieldName][index];
-                            }
-                          });
-                          if (Object.keys(updates).length > 0) {
-                            if (record.update) {
-                              updatePromises.push(record.update(updates));
-                            } else if (table.updateRecord) {
-                              updatePromises.push(table.updateRecord(record.id, updates));
-                            }
-                          }
-                        }
-                      });
-                      
-                      // 执行更新
-                      await Promise.all(updatePromises);
-                      console.log('更新成功');
-                      return true;
-                    }
-                  }
-                }
-              }
-            } catch (e) {
-              console.error('使用 top.lark.embedApp 失败:', e);
-            }
-          }
-        }
-      } catch (e) {
-        console.error('访问 top 窗口失败:', e);
-      }
-      
-      // 尝试使用 iframe 通信更新数据
-      console.log('尝试使用 iframe 通信更新数据');
-      try {
-        // 转换 DataFrame 为 JSON
-        const dfJson = df.toJSON();
-        
-        // 确定要更新的字段
-        const fieldsToUpdate = fields || Object.keys(dfJson);
-        
-        // 向父窗口发送消息
-        window.parent.postMessage({ 
-          type: 'UPDATE_BITABLE_DATA',
-          data: dfJson,
-          fields: fieldsToUpdate
-        }, '*');
-        
-        // 等待父窗口的响应
-        return new Promise((resolve, reject) => {
-          const handleMessage = (event) => {
-            if (event.data && event.data.type === 'UPDATE_BITABLE_DATA_SUCCESS') {
-              console.log('收到父窗口的更新成功消息');
-              window.removeEventListener('message', handleMessage);
-              resolve(true);
-            } else if (event.data && event.data.type === 'UPDATE_BITABLE_DATA_ERROR') {
-              console.error('收到父窗口的更新错误:', event.data.error);
-              window.removeEventListener('message', handleMessage);
-              reject(new Error(event.data.error));
-            }
-          };
-          
-          window.addEventListener('message', handleMessage);
-          
-          // 超时处理
-          setTimeout(() => {
-            window.removeEventListener('message', handleMessage);
-            reject(new Error('更新表格数据超时'));
-          }, 5000);
-        });
-      } catch (e) {
-        console.error('使用 iframe 通信失败:', e);
-      }
-      
-      // 如果所有方法都失败，返回模拟成功
-      console.log('返回模拟更新成功');
-      return true;
-    } catch (error) {
-      console.error('更新多维表格数据失败:', error);
-      // 返回模拟成功，以便用户可以继续使用其他功能
-      return true;
-    }
-  }
+  debugFeishuEnv,
+  getTable,
+  table2dict,
+  setTable
 });
 
 // 增强错误处理，提取行号
