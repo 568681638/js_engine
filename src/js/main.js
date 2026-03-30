@@ -279,38 +279,36 @@ const context = Object.freeze({
   async getBitableData() {
     try {
       // 检查是否在飞书环境中
-      if (!window.lark && !window.Bitable && !window.bitable) {
+      if (!window.lark && !window.Base && !window['lark-base']) {
         throw new Error('未检测到飞书环境');
       }
       
-      // 获取当前应用实例
-      let app;
-      if (window.lark && window.lark.embedApp) {
-        app = await window.lark.embedApp.getApp();
-      } else if (window.Bitable) {
-        app = window.Bitable;
-      } else if (window.bitable) {
-        app = window.bitable;
+      // 初始化 Base JS SDK
+      const Base = window.Base || window['lark-base'];
+      if (!Base) {
+        throw new Error('Base JS SDK 初始化失败');
       }
       
+      // 获取当前应用实例
+      const app = await Base.app.current();
       if (!app) {
         throw new Error('获取应用实例失败');
       }
       
       // 获取当前表格
-      const table = await app.getActiveTable();
+      const table = await app.table.current();
       if (!table) {
         throw new Error('获取表格失败');
       }
       
       // 获取所有记录
-      const records = await table.getRecords();
+      const records = await table.records.all();
       if (!records || records.length === 0) {
         return {};
       }
       
       // 获取所有字段
-      const fields = await table.getFields();
+      const fields = await table.fields.all();
       const fieldMap = {};
       fields.forEach(field => {
         fieldMap[field.id] = field.name;
@@ -325,7 +323,7 @@ const context = Object.freeze({
       
       // 填充数据
       records.forEach(record => {
-        Object.entries(record.fields).forEach(([fieldId, value]) => {
+        Object.entries(record.values).forEach(([fieldId, value]) => {
           const fieldName = fieldMap[fieldId];
           if (fieldName) {
             data[fieldName].push(value !== undefined ? value : null);
@@ -343,7 +341,7 @@ const context = Object.freeze({
   async updateBitableData(df, fields) {
     try {
       // 检查是否在飞书环境中
-      if (!window.lark && !window.Bitable && !window.bitable) {
+      if (!window.lark && !window.Base && !window['lark-base']) {
         throw new Error('未检测到飞书环境');
       }
       
@@ -352,34 +350,32 @@ const context = Object.freeze({
         throw new Error('请传入 Danfo.js DataFrame');
       }
       
-      // 获取当前应用实例
-      let app;
-      if (window.lark && window.lark.embedApp) {
-        app = await window.lark.embedApp.getApp();
-      } else if (window.Bitable) {
-        app = window.Bitable;
-      } else if (window.bitable) {
-        app = window.bitable;
+      // 初始化 Base JS SDK
+      const Base = window.Base || window['lark-base'];
+      if (!Base) {
+        throw new Error('Base JS SDK 初始化失败');
       }
       
+      // 获取当前应用实例
+      const app = await Base.app.current();
       if (!app) {
         throw new Error('获取应用实例失败');
       }
       
       // 获取当前表格
-      const table = await app.getActiveTable();
+      const table = await app.table.current();
       if (!table) {
         throw new Error('获取表格失败');
       }
       
       // 获取所有记录
-      const records = await table.getRecords();
+      const records = await table.records.all();
       if (!records || records.length === 0) {
         throw new Error('表格中没有记录');
       }
       
       // 获取所有字段
-      const tableFields = await table.getFields();
+      const tableFields = await table.fields.all();
       const fieldMap = {};
       tableFields.forEach(field => {
         fieldMap[field.name] = field.id;
@@ -410,7 +406,7 @@ const context = Object.freeze({
             }
           });
           if (Object.keys(updates).length > 0) {
-            updatePromises.push(table.updateRecord(record.id, updates));
+            updatePromises.push(record.update(updates));
           }
         }
       });
