@@ -518,11 +518,12 @@ async function table2dict(table) {
     // 尝试获取所有记录
     let records;
     try {
-      if (table.records && table.records.all) {
+      console.log('检查 table.records:', table.records);
+      if (table.records && typeof table.records === 'object' && table.records.all && typeof table.records.all === 'function') {
         console.log('尝试使用 table.records.all()');
         records = await table.records.all();
         console.log('获取记录成功:', records && records.length);
-      } else if (table.getRecords) {
+      } else if (table.getRecords && typeof table.getRecords === 'function') {
         console.log('尝试使用 table.getRecords()');
         records = await table.getRecords();
         console.log('获取记录成功 (getRecords):', records && records.length);
@@ -539,11 +540,12 @@ async function table2dict(table) {
     // 尝试获取所有字段
     let fields;
     try {
-      if (table.fields && table.fields.all) {
+      console.log('检查 table.fields:', table.fields);
+      if (table.fields && typeof table.fields === 'object' && table.fields.all && typeof table.fields.all === 'function') {
         console.log('尝试使用 table.fields.all()');
         fields = await table.fields.all();
         console.log('获取字段成功:', fields && fields.length);
-      } else if (table.getFields) {
+      } else if (table.getFields && typeof table.getFields === 'function') {
         console.log('尝试使用 table.getFields()');
         fields = await table.getFields();
         console.log('获取字段成功 (getFields):', fields && fields.length);
