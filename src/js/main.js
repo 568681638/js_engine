@@ -511,19 +511,51 @@ async function table2dict(table) {
     }
     
     console.log('开始将表格转换为字典');
+    console.log('表格实例类型:', typeof table);
+    console.log('表格实例属性:', Object.keys(table));
     
-    // 获取所有记录
-    const records = await table.records.all();
-    console.log('获取记录成功:', records && records.length);
+    // 尝试获取所有记录
+    let records;
+    try {
+      if (table.records && table.records.all) {
+        records = await table.records.all();
+        console.log('获取记录成功:', records && records.length);
+      } else if (table.getRecords) {
+        records = await table.getRecords();
+        console.log('获取记录成功 (getRecords):', records && records.length);
+      } else {
+        console.log('表格实例没有 records.all 或 getRecords 方法');
+        throw new Error('表格实例没有获取记录的方法');
+      }
+    } catch (e) {
+      console.error('获取记录失败:', e);
+      throw e;
+    }
     
-    // 获取所有字段
-    const fields = await table.fields.all();
-    console.log('获取字段成功:', fields && fields.length);
+    // 尝试获取所有字段
+    let fields;
+    try {
+      if (table.fields && table.fields.all) {
+        fields = await table.fields.all();
+        console.log('获取字段成功:', fields && fields.length);
+      } else if (table.getFields) {
+        fields = await table.getFields();
+        console.log('获取字段成功 (getFields):', fields && fields.length);
+      } else {
+        console.log('表格实例没有 fields.all 或 getFields 方法');
+        throw new Error('表格实例没有获取字段的方法');
+      }
+    } catch (e) {
+      console.error('获取字段失败:', e);
+      throw e;
+    }
     
     if (records && records.length > 0 && fields) {
       const fieldMap = {};
       fields.forEach(field => {
-        fieldMap[field.id] = field.name;
+        // 尝试不同的字段名称属性
+        const fieldName = field.name || field.title || field.fieldName || `字段${field.id}`;
+        fieldMap[field.id] = fieldName;
       });
       console.log('字段映射:', fieldMap);
       
@@ -534,13 +566,28 @@ async function table2dict(table) {
       });
       
       // 填充数据
-      records.forEach(record => {
-        Object.entries(record.values).forEach(([fieldId, value]) => {
-          const fieldName = fieldMap[fieldId];
-          if (fieldName) {
-            data[fieldName].push(value !== undefined ? value : null);
-          }
-        });
+      records.forEach((record, index) => {
+        console.log(`处理记录 ${index}:`);
+        console.log('记录类型:', typeof record);
+        console.log('记录属性:', Object.keys(record));
+        
+        if (record.values) {
+          Object.entries(record.values).forEach(([fieldId, value]) => {
+            const fieldName = fieldMap[fieldId];
+            if (fieldName) {
+              data[fieldName].push(value !== undefined ? value : null);
+            }
+          });
+        } else if (record.fields) {
+          Object.entries(record.fields).forEach(([fieldId, value]) => {
+            const fieldName = fieldMap[fieldId];
+            if (fieldName) {
+              data[fieldName].push(value !== undefined ? value : null);
+            }
+          });
+        } else {
+          console.log('记录没有 values 或 fields 属性');
+        }
       });
       
       console.log('转换后的数据:', data);
@@ -551,6 +598,7 @@ async function table2dict(table) {
     }
   } catch (error) {
     console.error('转换表格为字典失败:', error);
+    console.error('错误堆栈:', error.stack);
     throw error;
   }
 }
