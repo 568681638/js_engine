@@ -298,6 +298,65 @@ const context = Object.freeze({
       // 首先输出调试信息
       this.debugFeishuEnv();
       
+      // 尝试使用 @lark-base-open/js-sdk
+      console.log('尝试使用 @lark-base-open/js-sdk');
+      try {
+        if (window.BaseOpen) {
+          console.log('@lark-base-open/js-sdk 已加载');
+          
+          // 初始化 SDK
+          const base = new window.BaseOpen();
+          console.log('BaseOpen 实例创建成功');
+          
+          // 获取当前应用
+          const app = await base.app.current();
+          console.log('获取应用实例成功:', !!app);
+          
+          // 获取当前表格
+          const table = await app.table.current();
+          console.log('获取表格成功:', !!table);
+          
+          // 获取所有记录
+          const records = await table.records.all();
+          console.log('获取记录成功:', records && records.length);
+          
+          // 获取所有字段
+          const fields = await table.fields.all();
+          console.log('获取字段成功:', fields && fields.length);
+          
+          if (records && records.length > 0 && fields) {
+            const fieldMap = {};
+            fields.forEach(field => {
+              fieldMap[field.id] = field.name;
+            });
+            console.log('字段映射:', fieldMap);
+            
+            // 转换为字典形式
+            const data = {};
+            Object.values(fieldMap).forEach(fieldName => {
+              data[fieldName] = [];
+            });
+            
+            // 填充数据
+            records.forEach(record => {
+              Object.entries(record.values).forEach(([fieldId, value]) => {
+                const fieldName = fieldMap[fieldId];
+                if (fieldName) {
+                  data[fieldName].push(value !== undefined ? value : null);
+                }
+              });
+            });
+            
+            console.log('转换后的数据:', data);
+            return data;
+          }
+        } else {
+          console.log('@lark-base-open/js-sdk 未加载');
+        }
+      } catch (e) {
+        console.error('使用 @lark-base-open/js-sdk 失败:', e);
+      }
+      
       // 尝试直接使用 top 窗口的对象
       console.log('尝试访问 top 窗口');
       try {
@@ -310,13 +369,69 @@ const context = Object.freeze({
           const topBase = window.top.Base || window.top['lark-base'];
           const topApp = window.top.app || window.top.$app || window.top.larkin;
           const topBitable = window.top.Bitable || window.top.bitable;
+          const topBaseOpen = window.top.BaseOpen;
           
           console.log('top 窗口对象:', {
             lark: !!topLark,
             Base: !!topBase,
+            BaseOpen: !!topBaseOpen,
             app: !!topApp,
             Bitable: !!topBitable
           });
+          
+          // 尝试使用 top 窗口的 BaseOpen
+          if (topBaseOpen) {
+            console.log('使用 top.BaseOpen');
+            try {
+              const base = new topBaseOpen();
+              console.log('BaseOpen 实例创建成功');
+              
+              // 获取当前应用
+              const app = await base.app.current();
+              console.log('获取应用实例成功:', !!app);
+              
+              // 获取当前表格
+              const table = await app.table.current();
+              console.log('获取表格成功:', !!table);
+              
+              // 获取所有记录
+              const records = await table.records.all();
+              console.log('获取记录成功:', records && records.length);
+              
+              // 获取所有字段
+              const fields = await table.fields.all();
+              console.log('获取字段成功:', fields && fields.length);
+              
+              if (records && records.length > 0 && fields) {
+                const fieldMap = {};
+                fields.forEach(field => {
+                  fieldMap[field.id] = field.name;
+                });
+                console.log('字段映射:', fieldMap);
+                
+                // 转换为字典形式
+                const data = {};
+                Object.values(fieldMap).forEach(fieldName => {
+                  data[fieldName] = [];
+                });
+                
+                // 填充数据
+                records.forEach(record => {
+                  Object.entries(record.values).forEach(([fieldId, value]) => {
+                    const fieldName = fieldMap[fieldId];
+                    if (fieldName) {
+                      data[fieldName].push(value !== undefined ? value : null);
+                    }
+                  });
+                });
+                
+                console.log('转换后的数据:', data);
+                return data;
+              }
+            } catch (e) {
+              console.error('使用 top.BaseOpen 失败:', e);
+            }
+          }
           
           // 尝试使用 top 窗口的对象
           if (topBase) {
@@ -534,6 +649,81 @@ const context = Object.freeze({
       // 首先输出调试信息
       this.debugFeishuEnv();
       
+      // 尝试使用 @lark-base-open/js-sdk
+      console.log('尝试使用 @lark-base-open/js-sdk 进行更新');
+      try {
+        if (window.BaseOpen) {
+          console.log('@lark-base-open/js-sdk 已加载');
+          
+          // 初始化 SDK
+          const base = new window.BaseOpen();
+          console.log('BaseOpen 实例创建成功');
+          
+          // 获取当前应用
+          const app = await base.app.current();
+          console.log('获取应用实例成功:', !!app);
+          
+          // 获取当前表格
+          const table = await app.table.current();
+          console.log('获取表格成功:', !!table);
+          
+          // 获取所有记录
+          const records = await table.records.all();
+          console.log('获取记录成功:', records && records.length);
+          
+          // 获取所有字段
+          const tableFields = await table.fields.all();
+          console.log('获取字段成功:', tableFields && tableFields.length);
+          
+          if (records && records.length > 0 && tableFields) {
+            const fieldMap = {};
+            tableFields.forEach(field => {
+              fieldMap[field.name] = field.id;
+            });
+            console.log('字段映射:', fieldMap);
+            
+            // 转换 DataFrame 为 JSON
+            const dfJson = df.toJSON();
+            
+            // 确定要更新的字段
+            const fieldsToUpdate = fields || Object.keys(dfJson);
+            
+            // 验证字段是否存在
+            fieldsToUpdate.forEach(fieldName => {
+              if (!fieldMap[fieldName]) {
+                throw new Error(`字段 ${fieldName} 在表格中不存在`);
+              }
+            });
+            
+            // 准备更新数据
+            const updatePromises = [];
+            records.forEach((record, index) => {
+              if (index < df.shape[0]) {
+                const updates = {};
+                fieldsToUpdate.forEach(fieldName => {
+                  const fieldId = fieldMap[fieldName];
+                  if (fieldId) {
+                    updates[fieldId] = dfJson[fieldName][index];
+                  }
+                });
+                if (Object.keys(updates).length > 0) {
+                  updatePromises.push(record.update(updates));
+                }
+              }
+            });
+            
+            // 执行更新
+            await Promise.all(updatePromises);
+            console.log('更新成功');
+            return true;
+          }
+        } else {
+          console.log('@lark-base-open/js-sdk 未加载');
+        }
+      } catch (e) {
+        console.error('使用 @lark-base-open/js-sdk 失败:', e);
+      }
+      
       // 尝试直接使用 top 窗口的对象
       console.log('尝试访问 top 窗口进行更新');
       try {
@@ -545,13 +735,85 @@ const context = Object.freeze({
           const topBase = window.top.Base || window.top['lark-base'];
           const topApp = window.top.app || window.top.$app || window.top.larkin;
           const topBitable = window.top.Bitable || window.top.bitable;
+          const topBaseOpen = window.top.BaseOpen;
           
           console.log('top 窗口对象:', {
             lark: !!topLark,
             Base: !!topBase,
+            BaseOpen: !!topBaseOpen,
             app: !!topApp,
             Bitable: !!topBitable
           });
+          
+          // 尝试使用 top 窗口的 BaseOpen
+          if (topBaseOpen) {
+            console.log('使用 top.BaseOpen 进行更新');
+            try {
+              const base = new topBaseOpen();
+              console.log('BaseOpen 实例创建成功');
+              
+              // 获取当前应用
+              const app = await base.app.current();
+              console.log('获取应用实例成功:', !!app);
+              
+              // 获取当前表格
+              const table = await app.table.current();
+              console.log('获取表格成功:', !!table);
+              
+              // 获取所有记录
+              const records = await table.records.all();
+              console.log('获取记录成功:', records && records.length);
+              
+              // 获取所有字段
+              const tableFields = await table.fields.all();
+              console.log('获取字段成功:', tableFields && tableFields.length);
+              
+              if (records && records.length > 0 && tableFields) {
+                const fieldMap = {};
+                tableFields.forEach(field => {
+                  fieldMap[field.name] = field.id;
+                });
+                console.log('字段映射:', fieldMap);
+                
+                // 转换 DataFrame 为 JSON
+                const dfJson = df.toJSON();
+                
+                // 确定要更新的字段
+                const fieldsToUpdate = fields || Object.keys(dfJson);
+                
+                // 验证字段是否存在
+                fieldsToUpdate.forEach(fieldName => {
+                  if (!fieldMap[fieldName]) {
+                    throw new Error(`字段 ${fieldName} 在表格中不存在`);
+                  }
+                });
+                
+                // 准备更新数据
+                const updatePromises = [];
+                records.forEach((record, index) => {
+                  if (index < df.shape[0]) {
+                    const updates = {};
+                    fieldsToUpdate.forEach(fieldName => {
+                      const fieldId = fieldMap[fieldName];
+                      if (fieldId) {
+                        updates[fieldId] = dfJson[fieldName][index];
+                      }
+                    });
+                    if (Object.keys(updates).length > 0) {
+                      updatePromises.push(record.update(updates));
+                    }
+                  }
+                });
+                
+                // 执行更新
+                await Promise.all(updatePromises);
+                console.log('更新成功');
+                return true;
+              }
+            } catch (e) {
+              console.error('使用 top.BaseOpen 失败:', e);
+            }
+          }
           
           // 尝试使用 top 窗口的对象
           if (topBase) {
