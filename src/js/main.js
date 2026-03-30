@@ -275,56 +275,102 @@ const context = Object.freeze({
   console: customConsole,
   print, // 直接把 Python 风格 print 暴露出去
   dfd: window.dfd, // Danfo.js
+  // 调试：输出所有可能的飞书相关全局对象
+  debugFeishuEnv() {
+    console.log('飞书环境检测:', {
+      lark: !!window.lark,
+      Base: !!window.Base,
+      'lark-base': !!window['lark-base'],
+      app: !!window.app,
+      $app: !!window.$app,
+      larkin: !!window.larkin,
+      Bitable: !!window.Bitable,
+      bitable: !!window.bitable,
+      __LARK__: !!window.__LARK__,
+      FEISHU: !!window.FEISHU,
+      feishu: !!window.feishu,
+      windowKeys: Object.keys(window).filter(key => ['lark', 'Base', 'app', 'Bitable', 'bitable'].some(prefix => key.toLowerCase().includes(prefix)))
+    });
+  },
   // 获取多维表格数据并转换为 Danfo.js 可读取的字典形式
   async getBitableData() {
     try {
-      // 调试：输出所有可能的飞书相关全局对象
-      console.log('飞书环境检测:', {
-        lark: !!window.lark,
-        Base: !!window.Base,
-        'lark-base': !!window['lark-base'],
-        app: !!window.app,
-        $app: !!window.$app,
-        larkin: !!window.larkin,
-        Bitable: !!window.Bitable,
-        bitable: !!window.bitable,
-        __LARK__: !!window.__LARK__,
-        FEISHU: !!window.FEISHU,
-        feishu: !!window.feishu
-      });
+      // 首先输出调试信息
+      this.debugFeishuEnv();
       
       // 检查是否在飞书环境中
       if (!window.lark && !window.Base && !window['lark-base'] && !window.app && !window.$app && !window.larkin && !window.Bitable && !window.bitable && !window.__LARK__ && !window.FEISHU && !window.feishu) {
         throw new Error('未检测到飞书环境');
       }
       
+      // 尝试直接使用 window 对象中的表格数据
+      if (window.currentTable) {
+        console.log('使用 window.currentTable');
+        const table = window.currentTable;
+        // 这里可以根据 table 的结构进行处理
+        return table;
+      }
+      
       // 初始化 Base JS SDK
       let Base;
       if (window.Base) {
         Base = window.Base;
+        console.log('使用 window.Base');
       } else if (window['lark-base']) {
         Base = window['lark-base'];
+        console.log('使用 window[lark-base]');
       } else if (window.lark && window.lark.Base) {
         Base = window.lark.Base;
+        console.log('使用 window.lark.Base');
       } else if (window.app && window.app.Base) {
         Base = window.app.Base;
+        console.log('使用 window.app.Base');
       }
       
       // 获取当前应用实例
       let app;
       if (Base) {
-        app = await Base.app.current();
-      } else if (window.lark && window.lark.embedApp) {
-        app = await window.lark.embedApp.getApp();
-      } else if (window.Bitable) {
+        console.log('尝试使用 Base.app.current()');
+        try {
+          app = await Base.app.current();
+          console.log('获取应用实例成功:', !!app);
+        } catch (e) {
+          console.error('Base.app.current() 失败:', e);
+        }
+      } 
+      
+      if (!app && window.lark && window.lark.embedApp) {
+        console.log('尝试使用 window.lark.embedApp.getApp()');
+        try {
+          app = await window.lark.embedApp.getApp();
+          console.log('获取应用实例成功:', !!app);
+        } catch (e) {
+          console.error('window.lark.embedApp.getApp() 失败:', e);
+        }
+      }
+      
+      if (!app && window.Bitable) {
+        console.log('使用 window.Bitable');
         app = window.Bitable;
-      } else if (window.bitable) {
+      }
+      
+      if (!app && window.bitable) {
+        console.log('使用 window.bitable');
         app = window.bitable;
-      } else if (window.app) {
+      }
+      
+      if (!app && window.app) {
+        console.log('使用 window.app');
         app = window.app;
-      } else if (window.$app) {
+      }
+      
+      if (!app && window.$app) {
+        console.log('使用 window.$app');
         app = window.$app;
-      } else if (window.larkin) {
+      }
+      
+      if (!app && window.larkin) {
+        console.log('使用 window.larkin');
         app = window.larkin;
       }
       
@@ -335,9 +381,23 @@ const context = Object.freeze({
       // 获取当前表格
       let table;
       if (app.table && app.table.current) {
-        table = await app.table.current();
-      } else if (app.getActiveTable) {
-        table = await app.getActiveTable();
+        console.log('尝试使用 app.table.current()');
+        try {
+          table = await app.table.current();
+          console.log('获取表格成功:', !!table);
+        } catch (e) {
+          console.error('app.table.current() 失败:', e);
+        }
+      } 
+      
+      if (!table && app.getActiveTable) {
+        console.log('尝试使用 app.getActiveTable()');
+        try {
+          table = await app.getActiveTable();
+          console.log('获取表格成功:', !!table);
+        } catch (e) {
+          console.error('app.getActiveTable() 失败:', e);
+        }
       }
       
       if (!table) {
@@ -347,9 +407,23 @@ const context = Object.freeze({
       // 获取所有记录
       let records;
       if (table.records && table.records.all) {
-        records = await table.records.all();
-      } else if (table.getRecords) {
-        records = await table.getRecords();
+        console.log('尝试使用 table.records.all()');
+        try {
+          records = await table.records.all();
+          console.log('获取记录成功:', records && records.length);
+        } catch (e) {
+          console.error('table.records.all() 失败:', e);
+        }
+      } 
+      
+      if (!records && table.getRecords) {
+        console.log('尝试使用 table.getRecords()');
+        try {
+          records = await table.getRecords();
+          console.log('获取记录成功:', records && records.length);
+        } catch (e) {
+          console.error('table.getRecords() 失败:', e);
+        }
       }
       
       if (!records || records.length === 0) {
@@ -359,15 +433,34 @@ const context = Object.freeze({
       // 获取所有字段
       let fields;
       if (table.fields && table.fields.all) {
-        fields = await table.fields.all();
-      } else if (table.getFields) {
-        fields = await table.getFields();
+        console.log('尝试使用 table.fields.all()');
+        try {
+          fields = await table.fields.all();
+          console.log('获取字段成功:', fields && fields.length);
+        } catch (e) {
+          console.error('table.fields.all() 失败:', e);
+        }
+      } 
+      
+      if (!fields && table.getFields) {
+        console.log('尝试使用 table.getFields()');
+        try {
+          fields = await table.getFields();
+          console.log('获取字段成功:', fields && fields.length);
+        } catch (e) {
+          console.error('table.getFields() 失败:', e);
+        }
+      }
+      
+      if (!fields) {
+        throw new Error('获取字段失败');
       }
       
       const fieldMap = {};
       fields.forEach(field => {
         fieldMap[field.id] = field.name;
       });
+      console.log('字段映射:', fieldMap);
       
       // 转换为字典形式
       const data = {};
@@ -387,6 +480,7 @@ const context = Object.freeze({
         });
       });
       
+      console.log('转换后的数据:', data);
       return data;
     } catch (error) {
       console.error('获取多维表格数据失败:', error);
