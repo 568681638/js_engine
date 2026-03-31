@@ -1,4 +1,8 @@
+// 导入 @wannacode/code-editor-sdk
+import { CodeEditorSDK } from '../../vendor/@wannacode/code-editor-sdk/src/CodeEditorSDK/index.js';
+
 // 全局变量
+let fileTree;
 let editor;
 let terminal;
 let customConsole;
@@ -612,6 +616,35 @@ function initFileTree() {
               ]
             }
           ]
+        },
+        {
+          name: 'monaco-editor',
+          type: 'directory',
+          children: [
+            {
+              name: 'dev',
+              type: 'directory',
+              children: [
+                {
+                  name: 'vs',
+                  type: 'directory',
+                  children: [
+                    {
+                      name: 'editor',
+                      type: 'directory',
+                      children: [
+                        {
+                          name: 'editor.main.js',
+                          type: 'file',
+                          path: 'vendor/monaco-editor/dev/vs/editor/editor.main.js'
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
         }
       ]
     },
@@ -695,31 +728,53 @@ async function init() {
   initFileTree();
   
   // 初始化编辑器
-  editor = {
-    getValue: function() {
-      return document.getElementById('editor').value;
-    },
-    setValue: function(value) {
-      document.getElementById('editor').value = value;
-    }
-  };
+  if (CodeEditorSDK && CodeEditorSDK.Editor) {
+    editor = new CodeEditorSDK.Editor({
+      container: document.getElementById('editor'),
+      language: 'javascript',
+      theme: 'vs-light',
+      value: '// 在这里编写 JavaScript 代码\n\nasync function test() {\n  console.log("Hello, World!");\n  \n  // 测试飞书表格操作\n  try {\n    const table = await getTable();\n    console.log("获取表格成功:", !!table);\n    \n    // 输出表格的基本信息\n    console.log("表格名称:", table.name);\n    console.log("表格ID:", table.id);\n    \n    // 测试 table2dict 函数\n    const data = await table2dict(table);\n    console.log("转换为字典成功:", Object.keys(data).length > 0);\n    console.log("数据:", data);\n    \n    // 测试 setTable 函数\n    if (data && Object.keys(data).length > 0) {\n      // 创建一个简单的 DataFrame\n      const df = new dfd.DataFrame(data);\n      console.log("创建 DataFrame 成功:", !!df);\n      \n      // 更新表格\n      const result = await setTable(table, df);\n      console.log("更新表格成功:", result);\n    }\n  } catch (error) {\n    console.error("测试失败:", error);\n  }\n}\n\ntest();'
+    });
+  } else {
+    // 降级方案：使用简单的文本编辑器
+    editor = {
+      getValue: function() {
+        return document.getElementById('editor').value;
+      },
+      setValue: function(value) {
+        document.getElementById('editor').value = value;
+      }
+    };
+  }
   
   // 初始化终端
-  terminal = {
-    write: function(text) {
-      const terminalElement = document.getElementById('terminal');
-      const placeholder = terminalElement.querySelector('.terminal-placeholder');
-      if (placeholder) {
-        placeholder.style.display = 'none';
+  if (CodeEditorSDK && CodeEditorSDK.Terminal) {
+    terminal = new CodeEditorSDK.Terminal({
+      container: document.getElementById('terminal'),
+      options: {
+        cursorBlink: true,
+        fontSize: 14,
+        fontFamily: 'Consolas, Monaco, "Courier New", monospace'
       }
-      terminalElement.innerHTML += text;
-      terminalElement.scrollTop = terminalElement.scrollHeight;
-    },
-    clear: function() {
-      const terminalElement = document.getElementById('terminal');
-      terminalElement.innerHTML = '<div class="terminal-placeholder" style="color: #666; pointer-events: none;">程序输出将显示在这里</div>';
-    }
-  };
+    });
+  } else {
+    // 降级方案：使用简单的终端模拟
+    terminal = {
+      write: function(text) {
+        const terminalElement = document.getElementById('terminal');
+        const placeholder = terminalElement.querySelector('.terminal-placeholder');
+        if (placeholder) {
+          placeholder.style.display = 'none';
+        }
+        terminalElement.innerHTML += text;
+        terminalElement.scrollTop = terminalElement.scrollHeight;
+      },
+      clear: function() {
+        const terminalElement = document.getElementById('terminal');
+        terminalElement.innerHTML = '<div class="terminal-placeholder" style="color: #666; pointer-events: none;">程序输出将显示在这里</div>';
+      }
+    };
+  }
   
   // 创建自定义控制台
   customConsole = new CustomConsole(terminal);
@@ -740,9 +795,6 @@ async function init() {
   terminal.write('  - DataFrame 数据更新表格\n');
   terminal.write('  - 自定义控制台输出\n');
   terminal.write('  - 文件树浏览\n\n');
-  
-  // 设置默认编辑器内容
-  editor.setValue('// 在这里编写 JavaScript 代码\n\nasync function test() {\n  console.log("Hello, World!");\n  \n  // 测试飞书表格操作\n  try {\n    const table = await getTable();\n    console.log("获取表格成功:", !!table);\n    \n    // 输出表格的基本信息\n    console.log("表格名称:", table.name);\n    console.log("表格ID:", table.id);\n    \n    // 测试 table2dict 函数\n    const data = await table2dict(table);\n    console.log("转换为字典成功:", Object.keys(data).length > 0);\n    console.log("数据:", data);\n    \n    // 测试 setTable 函数\n    if (data && Object.keys(data).length > 0) {\n      // 创建一个简单的 DataFrame\n      const df = new dfd.DataFrame(data);\n      console.log("创建 DataFrame 成功:", !!df);\n      \n      // 更新表格\n      const result = await setTable(table, df);\n      console.log("更新表格成功:", result);\n    }\n  } catch (error) {\n    console.error("测试失败:", error);\n  }\n}\n\ntest();');
 }
 
 // 初始化可拖动分隔条

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>纯前端IDE（文件树+文件夹+编辑器+终端）</title>
+
+  <!-- jstree 文件树（支持文件夹） -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jstree@3.3.16/dist/themes/default-dark/style.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jstree@3.3.16/dist/jstree.min.js"></script>
+
+  <!-- Monaco 编辑器 -->
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.49.0/min/vs/loader.js"></script>
+
+  <!-- 终端 xterm.js -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm/css/xterm.css">
+  <script src="https://cdn.jsdelivr.net/npm/xterm/lib/xterm.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit/lib/xterm-addon-fit.min.js"></script>
+
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#1e1e1e;color:#fff}
+    #layout{height:100vh;display:grid;grid-template-rows:auto 1fr 30vh}
+    #toolbar{padding:10px;background:#252526}
+    #run{padding:8px 16px;background:#0e639c;color:white;border:none;border-radius:4px;cursor:pointer}
+    #main{display:grid;grid-template-columns:250px 1fr}
+    #tree{background:#1e1e1e;border-right:1px solid #444}
+    #editor{width:100%;height:100%}
+    #terminal{border-top:1px solid #444}
+  </style>
+</head>
+
+<body>
+<div id="layout">
+  <div id="toolbar">
+    <button id="run">运行代码</button>
+  </div>
+  <div id="main">
+    <div id="tree"></div> <!-- 现成文件树（支持文件夹） -->
+    <div id="editor"></div>
+  </div>
+  <div id="terminal"></div>
+</div>
+
+<script>
+// ========================= 文件结构（支持文件夹） =========================
+const fileData = [
+  { "id": "1", "text": "项目", "children": [
+    { "id": "2", "text": "utils", "children": [
+      { "id": "file1", "text": "helper.js", "type": "file" }
+    ]},
+    { "id": "file2", "text": "index.js", "type": "file" },
+    { "id": "file3", "text": "test.js", "type": "file" }
+  ]}
+];
+
+const fileContent = {
+  "file1": "console.log('工具函数')",
+  "file2": "console.log('首页运行')",
+  "file3": "console.log('测试文件')"
+};
+
+// ========================= 现成文件树（jstree） =========================
+let editor;
+let currentFile = "file2";
+
+$(function(){
+  $('#tree').jstree({
+    'core': {
+      'themes': { "name": "default-dark", "dots": true },
+      'data': fileData
+    },
+    "types": { "file": {} },
+    "plugins": ["types"]
+  });
+
+  $('#tree').on("changed.jstree", (e, data)=>{
+    const id = data.node.id;
+    if(fileContent[id]){
+      currentFile = id;
+      editor.setValue(fileContent[id]);
+    }
+  });
+});
+
+// ========================= 编辑器 =========================
+require.config({ paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.49.0/min/vs' } });
+require(['vs/editor/editor.main'], ()=>{
+  editor = monaco.editor.create(document.getElementById('editor'), {
+    value: fileContent[currentFile],
+    language: 'javascript',
+    theme: 'vs-dark',
+    automaticLayout: true
+  });
+});
+
+// ========================= 终端（只读） =========================
+const term = new Terminal({ disableStdin:true, theme:{background:"#1e1e1e"} });
+term.loadAddon(new FitAddon.FitAddon());
+term.open(document.getElementById('terminal'));
+term.writeln("终端已就绪（仅输出）");
+
+// ========================= 运行 =========================
+document.getElementById('run').onclick = ()=>{
+  term.clear();
+  try {
+    const code = editor.getValue();
+    const ori = console.log;
+    console.log = (...args)=>{ term.writeln(args.join(' ')); ori(...args); };
+    const res = eval(code);
+    term.writeln(`\n✅ 运行完成：${res}`);
+    console.log = ori;
+  } catch(e){
+    term.writeln(`\n❌ 错误：${e.message}`);
+  }
+};
+</script>
+</body>
+</html>

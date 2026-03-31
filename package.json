@@ -1,22 +1,14 @@
 {
-  "name": "js_engine",
+  "name": "multi-dimension-table-js-engine",
   "version": "1.0.0",
-  "description": "多维表格 JS 引擎",
+  "description": "多维表格 JS 引擎，用于在飞书多维表格中执行 JavaScript 代码",
   "main": "index.html",
   "scripts": {
-    "install-deps": "npm install @wannacode/code-editor-sdk danfojs"
+    "install-deps": "npm install @lark-base-open/js-sdk @wannacode/code-editor-sdk danfojs"
   },
-  "keywords": [
-    "飞书",
-    "多维表格",
-    "JavaScript",
-    "Danfo.js"
-  ],
-  "author": "",
-  "license": "MIT",
   "dependencies": {
     "@lark-base-open/js-sdk": "^1.0.2",
-    "@wannacode/code-editor-sdk": "^1.0.11",
-    "danfojs": "^1.2.0"
+    "@wannacode/code-editor-sdk": "^1.0.0",
+    "danfojs": "^1.1.2"
   }
 }
