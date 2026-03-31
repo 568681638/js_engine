@@ -1,5 +1,5 @@
-// 导入 @wannacode/code-editor-sdk
-import { CodeEditorSDK } from '../../vendor/@wannacode/code-editor-sdk/src/CodeEditorSDK/index.js';
+// 导入 @wannacode/code-editor-sdk 组件
+import { FileTree, Editor, Terminal } from '../../vendor/@wannacode/code-editor-sdk/src/CodeEditorSDK/index.js';
 
 // 全局变量
 let fileTree;
@@ -728,8 +728,8 @@ async function init() {
   initFileTree();
   
   // 初始化编辑器
-  if (CodeEditorSDK && CodeEditorSDK.Editor) {
-    editor = new CodeEditorSDK.Editor({
+  if (Editor) {
+    editor = new Editor({
       container: document.getElementById('editor'),
       language: 'javascript',
       theme: 'vs-light',
@@ -748,8 +748,8 @@ async function init() {
   }
   
   // 初始化终端
-  if (CodeEditorSDK && CodeEditorSDK.Terminal) {
-    terminal = new CodeEditorSDK.Terminal({
+  if (Terminal) {
+    terminal = new Terminal({
       container: document.getElementById('terminal'),
       options: {
         cursorBlink: true,
