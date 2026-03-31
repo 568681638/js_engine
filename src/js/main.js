@@ -1,424 +1,207 @@
-// 导入 @lark-base-open/js-sdk
-import { bitable } from '../../vendor/@lark-base-open/js-sdk/dist/index.mjs';
-
-// 全局暴露 bitable 对象
-window.bitable = bitable;
-
 // 全局变量
 let editor;
 let terminal;
+let customConsole;
 
-// 初始化 Monaco Editor
-function initMonacoEditor() {
-  // 简化 Monaco Editor 初始化
-  require(['vs/editor/editor.main'], function(monaco) {
-    editor = monaco.editor.create(document.getElementById('editor'), {
-      value: '',
-      language: 'javascript',
-      theme: 'vs-dark',
-      automaticLayout: true,
-      minimap: {
-        enabled: true
-      },
-      scrollBeyondLastLine: false,
-      fontSize: 14,
-      tabSize: 2,
-      insertSpaces: true,
-      // 启用水平滚动条
-      horizontalScrolling: true,
-      // 显示水平滚动条
-      scrollbar: {
-        horizontal: 'visible',
-        vertical: 'visible'
-      }
-    });
-  });
-}
-
-// 初始化 xterm.js 终端
-function initTerminal() {
-  // 检查 xterm.js 的导出方式
-  if (window.xterm) {
-    terminal = new window.xterm.Terminal({
-      theme: {
-        background: '#1e1e1e',
-        foreground: '#d4d4d4',
-        cursor: '#ffffff',
-        selection: 'rgba(255, 255, 255, 0.3)',
-        black: '#000000',
-        red: '#f48771',
-        green: '#57ab5a',
-        yellow: '#d69d85',
-        blue: '#61afef',
-        magenta: '#c678dd',
-        cyan: '#56b6c2',
-        white: '#d4d4d4',
-        brightBlack: '#686868',
-        brightRed: '#f48771',
-        brightGreen: '#57ab5a',
-        brightYellow: '#d69d85',
-        brightBlue: '#61afef',
-        brightMagenta: '#c678dd',
-        brightCyan: '#56b6c2',
-        brightWhite: '#ffffff'
-      },
-      fontSize: 14,
-      lineHeight: 1.5,
-      cursorBlink: true,
-      scrollback: 1000
-    });
-  } else if (window.Terminal) {
-    terminal = new window.Terminal({
-      theme: {
-        background: '#1e1e1e',
-        foreground: '#d4d4d4',
-        cursor: '#ffffff',
-        selection: 'rgba(255, 255, 255, 0.3)',
-        black: '#000000',
-        red: '#f48771',
-        green: '#57ab5a',
-        yellow: '#d69d85',
-        blue: '#61afef',
-        magenta: '#c678dd',
-        cyan: '#56b6c2',
-        white: '#d4d4d4',
-        brightBlack: '#686868',
-        brightRed: '#f48771',
-        brightGreen: '#57ab5a',
-        brightYellow: '#d69d85',
-        brightBlue: '#61afef',
-        brightMagenta: '#c678dd',
-        brightCyan: '#56b6c2',
-        brightWhite: '#ffffff'
-      },
-      fontSize: 14,
-      lineHeight: 1.5,
-      cursorBlink: true,
-      scrollback: 1000
-    });
-  } else {
-    // 如果 xterm.js 加载失败，使用简单的终端模拟
-    terminal = {
-      open: function(element) {
-        this.element = element;
-        // 添加占位符和内容容器
-        this.element.innerHTML = `
-          <div style="position: relative; height: 100%;">
-            <div class="terminal-placeholder" style="position: absolute; top: 10px; left: 10px; color: #666; font-family: monospace; pointer-events: none;">
-              程序输出将显示在这里
-            </div>
-            <div class="terminal-content" style="padding: 10px; height: 100%; overflow-y: auto; background: #1e1e1e; color: #d4d4d4; font-family: monospace; box-sizing: border-box;"></div>
-          </div>
-        `;
-        this.content = this.element.querySelector('.terminal-content');
-        this.placeholder = this.element.querySelector('.terminal-placeholder');
-      },
-      write: function(text) {
-        if (this.content && this.placeholder) {
-          // 隐藏占位符
-          this.placeholder.style.display = 'none';
-          // 替换 \r\n 和 \n 为 <br>，确保换行显示
-          const formattedText = text.replace(/\r\n/g, '<br>').replace(/\n/g, '<br>');
-          this.content.innerHTML += formattedText;
-          // 确保滚动到底部
-          setTimeout(() => {
-            this.content.scrollTop = this.content.scrollHeight;
-          }, 0);
-        }
-      },
-      clear: function() {
-        if (this.content && this.placeholder) {
-          this.content.innerHTML = '';
-          // 显示占位符
-          this.placeholder.style.display = 'block';
-        }
-      },
-      selectAll: function() {
-        if (this.content) {
-          const range = document.createRange();
-          range.selectNodeContents(this.content);
-          const selection = window.getSelection();
-          selection.removeAllRanges();
-          selection.addRange(range);
-        }
-      }
-    };
+// 自定义控制台
+class CustomConsole {
+  constructor(terminal) {
+    this.terminal = terminal;
   }
   
-  // 为 xterm.js 添加占位符
-  if (window.xterm || window.Terminal) {
-    terminal.open(document.getElementById('terminal'));
-    
-    // 清除任何默认的欢迎文本
-    terminal.clear();
-    
-    // 添加占位符元素
-    const placeholder = document.createElement('div');
-    placeholder.className = 'terminal-placeholder';
-    placeholder.style.cssText = 'position: absolute; top: 10px; left: 10px; color: #666; font-family: monospace; pointer-events: none;';
-    placeholder.textContent = '程序输出将显示在这里';
-    
-    // 插入占位符到终端容器
-    const terminalElement = document.getElementById('terminal');
-    terminalElement.style.position = 'relative';
-    terminalElement.appendChild(placeholder);
-    
-    // 重写 write 方法，隐藏占位符并自动滚动到底部
-    const originalWrite = terminal.write.bind(terminal);
-    terminal.write = function(text) {
-      placeholder.style.display = 'none';
-      originalWrite(text);
-      // 自动滚动到底部
-      terminal.scrollToBottom();
-    };
-    
-    // 重写 clear 方法，显示占位符
-    const originalClear = terminal.clear.bind(terminal);
-    terminal.clear = function() {
-      originalClear();
-      placeholder.style.display = 'block';
-    };
-  } else {
-    // 对于模拟终端，直接打开
-    terminal.open(document.getElementById('terminal'));
-  }
-}
-
-// 初始化可拖动分隔条
-function initResizer() {
-  const resizer = document.getElementById('resizer');
-  const editorContainer = document.querySelector('.editor-container');
-  const terminalContainer = document.querySelector('.terminal-container');
-  const container = document.querySelector('.container');
-  
-  let isResizing = false;
-  let startY = 0;
-  let startEditorHeight = 0;
-  
-  resizer.addEventListener('mousedown', (e) => {
-    isResizing = true;
-    startY = e.clientY;
-    startEditorHeight = editorContainer.offsetHeight;
-    document.body.style.cursor = 'row-resize';
-  });
-  
-  document.addEventListener('mousemove', (e) => {
-    if (!isResizing) return;
-    
-    const deltaY = e.clientY - startY;
-    const newEditorHeight = startEditorHeight + deltaY;
-    const containerHeight = container.offsetHeight;
-    
-    // 确保最小高度
-    if (newEditorHeight >= 100 && containerHeight - newEditorHeight >= 100) {
-      const editorFlex = newEditorHeight / containerHeight;
-      const terminalFlex = (containerHeight - newEditorHeight) / containerHeight;
-      
-      editorContainer.style.flex = editorFlex;
-      terminalContainer.style.flex = terminalFlex;
-    }
-  });
-  
-  document.addEventListener('mouseup', () => {
-    isResizing = false;
-    document.body.style.cursor = '';
-  });
-}
-
-// 往终端输出内容，模拟 Python 的 print 函数
-function print(...args) {
-  // 处理关键字参数
-  let sep = ' ';
-  let end = '\r\n';
-  let file = null;
-  let flush = false;
-  
-  // 检查最后一个参数是否为对象（可能包含关键字参数）
-  if (args.length > 0) {
-    const lastArg = args[args.length - 1];
-    if (typeof lastArg === 'object' && lastArg !== null && !Array.isArray(lastArg)) {
-      if (lastArg.sep !== undefined) sep = lastArg.sep;
-      if (lastArg.end !== undefined) end = lastArg.end;
-      if (lastArg.file !== undefined) file = lastArg.file;
-      if (lastArg.flush !== undefined) flush = lastArg.flush;
-      // 移除关键字参数对象
-      args.pop();
-    }
-  }
-  
-  // 转换并连接参数
-  const str = args.map(item => {
-    if (typeof item === 'object' && item !== null) {
+  log(...args) {
+    const message = args.map(arg => {
       try {
-        return JSON.stringify(item, null, 2);
+        return typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg);
       } catch (e) {
-        return String(item);
+        return String(arg);
       }
-    }
-    return String(item);
-  }).join(sep);
-
-  // 输出到指定文件或默认终端
-  if (file && typeof file.write === 'function') {
-    file.write(str + end);
-    if (flush && typeof file.flush === 'function') {
-      file.flush();
-    }
-  } else {
-    terminal.write(str + end);
+    }).join(' ');
+    this.terminal.write(`[LOG] ${message}\n`);
+  }
+  
+  error(...args) {
+    const message = args.map(arg => {
+      try {
+        return typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg);
+      } catch (e) {
+        return String(arg);
+      }
+    }).join(' ');
+    this.terminal.write(`[ERROR] ${message}\n`);
+  }
+  
+  warn(...args) {
+    const message = args.map(arg => {
+      try {
+        return typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg);
+      } catch (e) {
+        return String(arg);
+      }
+    }).join(' ');
+    this.terminal.write(`[WARN] ${message}\n`);
+  }
+  
+  info(...args) {
+    const message = args.map(arg => {
+      try {
+        return typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg);
+      } catch (e) {
+        return String(arg);
+      }
+    }).join(' ');
+    this.terminal.write(`[INFO] ${message}\n`);
   }
 }
 
-// 自定义 console，也输出到终端
-const customConsole = {
-  log: (...args) => print(...args),
-  warn: (...args) => print('[WARN]', ...args),
-  error: (...args) => print('[ERROR]', ...args),
-};
-
-// 调试：输出所有可能的飞书相关全局对象
-function debugFeishuEnv() {
-  console.log('飞书环境检测:', {
-    lark: !!window.lark,
-    Base: !!window.Base,
-    'lark-base': !!window['lark-base'],
-    app: !!window.app,
-    $app: !!window.$app,
-    larkin: !!window.larkin,
-    Bitable: !!window.Bitable,
-    bitable: !!window.bitable,
-    __LARK__: !!window.__LARK__,
-    FEISHU: !!window.FEISHU,
-    feishu: !!window.feishu,
-    windowKeys: Object.keys(window).filter(key => ['lark', 'Base', 'app', 'Bitable', 'bitable'].some(prefix => key.toLowerCase().includes(prefix)))
-  });
+// Python 风格的 print 函数
+function print(...args) {
+  const message = args.map(arg => {
+    try {
+      return typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg);
+    } catch (e) {
+      return String(arg);
+    }
+  }).join(' ');
+  terminal.write(`${message}\n`);
 }
 
-
+// 调试飞书环境
+function debugFeishuEnv() {
+  console.log('飞书环境调试信息:');
+  console.log('window.Base:', !!window.Base);
+  console.log('window.BaseOpen:', !!window.BaseOpen);
+  console.log('window.lark-base:', !!window['lark-base']);
+  console.log('window.top:', !!window.top);
+  if (window.top && window.top !== window) {
+    console.log('window.top.Base:', !!window.top.Base);
+    console.log('window.top.BaseOpen:', !!window.top.BaseOpen);
+    console.log('window.top.lark-base:', !!window.top['lark-base']);
+  }
+}
 
 // 根据表格名称获取表格实例
 async function getTable(tableName) {
   try {
-    // 首先输出调试信息
+    console.log('开始获取表格实例');
+    
+    // 调试飞书环境
     debugFeishuEnv();
     
-    // 尝试使用导入的 bitable 对象
-    console.log('尝试使用导入的 bitable 对象获取表格');
-    try {
-      if (bitable) {
-        console.log('bitable 对象已加载');
+    // 尝试使用 window.BaseOpen
+    if (window.BaseOpen) {
+      console.log('window.BaseOpen 已加载');
+      
+      // 初始化 SDK
+      const base = new window.BaseOpen();
+      console.log('BaseOpen 实例创建成功');
+      
+      // 获取当前应用
+      const app = await base.app.current();
+      console.log('获取应用实例成功:', !!app);
+      
+      if (tableName) {
+        // 获取所有表格
+        const tables = await app.tables.all();
+        console.log('获取表格列表成功:', tables && tables.length);
         
-        // 获取表格元数据列表和当前选择
-        const [tableList, selection] = await Promise.all([bitable.base.getTableMetaList(), bitable.base.getSelection()]);
-        console.log('获取表格列表成功:', tableList && tableList.length);
-        console.log('获取当前选择成功:', !!selection);
-        
-        if (tableList && tableList.length > 0) {
-          let targetTable;
-          if (tableName) {
-            // 查找名称匹配的表格
-            targetTable = tableList.find(table => table.name === tableName);
-          } else {
-            // 如果没有提供表格名称，使用当前选择的表格或第一个表格
-            targetTable = tableList.find(table => table.id === selection.tableId) || tableList[0];
-          }
-          
+        if (tables && tables.length > 0) {
+          // 查找名称匹配的表格
+          const targetTable = tables.find(table => table.name === tableName);
           if (targetTable) {
-            console.log('找到表格:', targetTable.name, 'ID:', targetTable.id);
-            
-            // 根据表格ID获取表格实例
-            const table = await bitable.base.getTableById(targetTable.id);
-            console.log('获取表格实例成功:', !!table);
-            return table;
+            console.log('找到表格:', targetTable.name);
+            return targetTable;
           } else {
             console.error('未找到名称为', tableName, '的表格');
             throw new Error(`未找到名称为 ${tableName} 的表格`);
           }
         }
       } else {
-        console.log('bitable 对象未加载');
+        // 如果没有提供表格名称，使用当前表格
+        const table = await app.table.current();
+        console.log('获取当前表格成功:', !!table);
+        if (table) {
+          return table;
+        }
       }
-    } catch (e) {
-      console.error('使用 bitable 对象失败:', e);
-      throw e;
+    } else {
+      console.log('window.BaseOpen 未加载');
     }
-    
-    // 尝试使用 window.BaseOpen（兼容旧版本）
-    console.log('尝试使用 window.BaseOpen 获取表格');
-    try {
-      if (window.BaseOpen) {
-        console.log('window.BaseOpen 已加载');
-        
-        // 初始化 SDK
-        const base = new window.BaseOpen();
-        console.log('BaseOpen 实例创建成功');
-        
-        // 获取当前应用
-        const app = await base.app.current();
-        console.log('获取应用实例成功:', !!app);
-        
-        if (tableName) {
-          // 获取所有表格
-          const tables = await app.tables.all();
-          console.log('获取表格列表成功:', tables && tables.length);
+  } catch (e) {
+    console.error('使用 window.BaseOpen 失败:', e);
+    throw e;
+  }
+  
+  // 尝试直接使用 top 窗口的对象
+  console.log('尝试访问 top 窗口获取表格');
+  try {
+    if (window.top && window.top !== window) {
+      console.log('top 窗口存在');
+      
+      // 尝试从 top 窗口获取飞书相关对象
+      const topBase = window.top.Base || window.top['lark-base'];
+      const topBaseOpen = window.top.BaseOpen;
+      
+      console.log('top 窗口对象:', {
+        Base: !!topBase,
+        BaseOpen: !!topBaseOpen
+      });
+      
+      // 尝试使用 top 窗口的 BaseOpen
+      if (topBaseOpen) {
+        console.log('使用 top.BaseOpen');
+        try {
+          const base = new topBaseOpen();
+          console.log('BaseOpen 实例创建成功');
           
-          if (tables && tables.length > 0) {
-            // 查找名称匹配的表格
-            const targetTable = tables.find(table => table.name === tableName);
-            if (targetTable) {
-              console.log('找到表格:', targetTable.name);
-              return targetTable;
-            } else {
-              console.error('未找到名称为', tableName, '的表格');
-              throw new Error(`未找到名称为 ${tableName} 的表格`);
+          // 获取当前应用
+          const app = await base.app.current();
+          console.log('获取应用实例成功:', !!app);
+          
+          if (tableName) {
+            // 获取所有表格
+            const tables = await app.tables.all();
+            console.log('获取表格列表成功:', tables && tables.length);
+            
+            if (tables && tables.length > 0) {
+              // 查找名称匹配的表格
+              const targetTable = tables.find(table => table.name === tableName);
+              if (targetTable) {
+                console.log('找到表格:', targetTable.name);
+                return targetTable;
+              } else {
+                console.error('未找到名称为', tableName, '的表格');
+                throw new Error(`未找到名称为 ${tableName} 的表格`);
+              }
+            }
+          } else {
+            // 如果没有提供表格名称，使用当前表格
+            const table = await app.table.current();
+            console.log('获取当前表格成功:', !!table);
+            if (table) {
+              return table;
             }
           }
-        } else {
-          // 如果没有提供表格名称，使用当前表格
-          const table = await app.table.current();
-          console.log('获取当前表格成功:', !!table);
-          if (table) {
-            return table;
-          }
+        } catch (e) {
+          console.error('使用 top.BaseOpen 失败:', e);
         }
-      } else {
-        console.log('window.BaseOpen 未加载');
       }
-    } catch (e) {
-      console.error('使用 window.BaseOpen 失败:', e);
-      throw e;
-    }
-    
-    // 尝试直接使用 top 窗口的对象
-    console.log('尝试访问 top 窗口获取表格');
-    try {
-      if (window.top && window.top !== window) {
-        console.log('top 窗口存在');
-        
-        // 尝试从 top 窗口获取飞书相关对象
-        const topBase = window.top.Base || window.top['lark-base'];
-        const topBaseOpen = window.top.BaseOpen;
-        
-        console.log('top 窗口对象:', {
-          Base: !!topBase,
-          BaseOpen: !!topBaseOpen
-        });
-        
-        // 尝试使用 top 窗口的 BaseOpen
-        if (topBaseOpen) {
-          console.log('使用 top.BaseOpen');
-          try {
-            const base = new topBaseOpen();
-            console.log('BaseOpen 实例创建成功');
-            
-            // 获取当前应用
-            const app = await base.app.current();
-            console.log('获取应用实例成功:', !!app);
-            
+      
+      // 尝试使用 top 窗口的 Base
+      if (topBase) {
+        console.log('使用 top.Base');
+        try {
+          const app = await topBase.app.current();
+          console.log('获取应用实例成功:', !!app);
+          
+          if (app) {
             if (tableName) {
               // 获取所有表格
-              const tables = await app.tables.all();
-              console.log('获取表格列表成功:', tables && tables.length);
+              let tables;
+              if (app.tables && app.tables.all) {
+                tables = await app.tables.all();
+                console.log('获取表格列表成功:', tables && tables.length);
+              }
               
               if (tables && tables.length > 0) {
                 // 查找名称匹配的表格
@@ -433,74 +216,30 @@ async function getTable(tableName) {
               }
             } else {
               // 如果没有提供表格名称，使用当前表格
-              const table = await app.table.current();
-              console.log('获取当前表格成功:', !!table);
+              let table;
+              if (app.table && app.table.current) {
+                table = await app.table.current();
+                console.log('获取当前表格成功:', !!table);
+              } else if (app.getActiveTable) {
+                table = await app.getActiveTable();
+                console.log('获取当前表格成功:', !!table);
+              }
               if (table) {
                 return table;
               }
             }
-          } catch (e) {
-            console.error('使用 top.BaseOpen 失败:', e);
           }
-        }
-        
-        // 尝试使用 top 窗口的 Base
-        if (topBase) {
-          console.log('使用 top.Base');
-          try {
-            const app = await topBase.app.current();
-            console.log('获取应用实例成功:', !!app);
-            
-            if (app) {
-              if (tableName) {
-                // 获取所有表格
-                let tables;
-                if (app.tables && app.tables.all) {
-                  tables = await app.tables.all();
-                  console.log('获取表格列表成功:', tables && tables.length);
-                }
-                
-                if (tables && tables.length > 0) {
-                  // 查找名称匹配的表格
-                  const targetTable = tables.find(table => table.name === tableName);
-                  if (targetTable) {
-                    console.log('找到表格:', targetTable.name);
-                    return targetTable;
-                  } else {
-                    console.error('未找到名称为', tableName, '的表格');
-                    throw new Error(`未找到名称为 ${tableName} 的表格`);
-                  }
-                }
-              } else {
-                // 如果没有提供表格名称，使用当前表格
-                let table;
-                if (app.table && app.table.current) {
-                  table = await app.table.current();
-                  console.log('获取当前表格成功:', !!table);
-                } else if (app.getActiveTable) {
-                  table = await app.getActiveTable();
-                  console.log('获取当前表格成功:', !!table);
-                }
-                if (table) {
-                  return table;
-                }
-              }
-            }
-          } catch (e) {
-            console.error('使用 top.Base 失败:', e);
-          }
+        } catch (e) {
+          console.error('使用 top.Base 失败:', e);
         }
       }
-    } catch (e) {
-      console.error('访问 top 窗口失败:', e);
     }
-    
-    // 如果所有方法都失败，抛出错误
-    throw new Error('未检测到飞书环境或无法获取表格');
-  } catch (error) {
-    console.error('获取表格失败:', error);
-    throw error;
+  } catch (e) {
+    console.error('访问 top 窗口失败:', e);
   }
+  
+  // 如果所有方法都失败，抛出错误
+  throw new Error('未检测到飞书环境或无法获取表格');
 }
 
 // 将表格实例转换为字典对象（可用于Danfo.js初始化DataFrame）
@@ -527,8 +266,12 @@ async function table2dict(table) {
         console.log('尝试使用 table.getRecords()');
         records = await table.getRecords();
         console.log('获取记录成功 (getRecords):', records && records.length);
+      } else if (table.query && typeof table.query === 'function') {
+        console.log('尝试使用 table.query()');
+        records = await table.query();
+        console.log('获取记录成功 (query):', records && records.length);
       } else {
-        console.log('表格实例没有 records.all 或 getRecords 方法');
+        console.log('表格实例没有 records.all、getRecords 或 query 方法');
         return {};
       }
     } catch (e) {
@@ -549,8 +292,12 @@ async function table2dict(table) {
         console.log('尝试使用 table.getFields()');
         fields = await table.getFields();
         console.log('获取字段成功 (getFields):', fields && fields.length);
+      } else if (table.getFieldList && typeof table.getFieldList === 'function') {
+        console.log('尝试使用 table.getFieldList()');
+        fields = await table.getFieldList();
+        console.log('获取字段成功 (getFieldList):', fields && fields.length);
       } else {
-        console.log('表格实例没有 fields.all 或 getFields 方法');
+        console.log('表格实例没有 fields.all、getFields 或 getFieldList 方法');
         return {};
       }
     } catch (e) {
@@ -631,12 +378,36 @@ async function setTable(table, df, fields) {
     console.log('开始更新表格数据');
     
     // 获取所有记录
-    const records = await table.records.all();
-    console.log('获取记录成功:', records && records.length);
+    let records;
+    try {
+      if (table.records && table.records.all) {
+        records = await table.records.all();
+      } else if (table.getRecords) {
+        records = await table.getRecords();
+      } else {
+        throw new Error('表格实例没有获取记录的方法');
+      }
+      console.log('获取记录成功:', records && records.length);
+    } catch (e) {
+      console.error('获取记录失败:', e);
+      throw e;
+    }
     
     // 获取所有字段
-    const tableFields = await table.fields.all();
-    console.log('获取字段成功:', tableFields && tableFields.length);
+    let tableFields;
+    try {
+      if (table.fields && table.fields.all) {
+        tableFields = await table.fields.all();
+      } else if (table.getFields) {
+        tableFields = await table.getFields();
+      } else {
+        throw new Error('表格实例没有获取字段的方法');
+      }
+      console.log('获取字段成功:', tableFields && tableFields.length);
+    } catch (e) {
+      console.error('获取字段失败:', e);
+      throw e;
+    }
     
     if (records && records.length > 0 && tableFields) {
       const fieldMap = {};
@@ -660,32 +431,49 @@ async function setTable(table, df, fields) {
       
       // 准备更新数据
       const updatePromises = [];
+      
+      // 遍历记录并更新
       records.forEach((record, index) => {
-        if (index < df.shape[0]) {
-          const updates = {};
+        // 检查是否有对应的数据行
+        if (dfJson[fieldsToUpdate[0]] && dfJson[fieldsToUpdate[0]][index] !== undefined) {
+          const updateData = {};
+          
+          // 填充要更新的字段数据
           fieldsToUpdate.forEach(fieldName => {
             const fieldId = fieldMap[fieldName];
-            if (fieldId) {
-              updates[fieldId] = dfJson[fieldName][index];
+            if (fieldId && dfJson[fieldName] && dfJson[fieldName][index] !== undefined) {
+              updateData[fieldId] = dfJson[fieldName][index];
             }
           });
-          if (Object.keys(updates).length > 0) {
-            updatePromises.push(record.update(updates));
+          
+          // 如果有数据要更新
+          if (Object.keys(updateData).length > 0) {
+            console.log(`更新记录 ${index}:`, updateData);
+            if (record.update) {
+              updatePromises.push(record.update(updateData));
+            } else {
+              console.error('记录没有 update 方法');
+            }
           }
         }
       });
       
       // 执行更新
-      await Promise.all(updatePromises);
-      console.log('更新成功');
-      return true;
+      if (updatePromises.length > 0) {
+        await Promise.all(updatePromises);
+        console.log('更新完成:', updatePromises.length, '条记录');
+        return true;
+      } else {
+        console.log('没有记录需要更新');
+        return false;
+      }
     } else {
       console.log('表格无数据或字段');
       return false;
     }
   } catch (error) {
-    console.error('更新表格数据失败:', error);
-    return false;
+    console.error('更新表格失败:', error);
+    throw error;
   }
 }
 
@@ -700,83 +488,303 @@ const context = Object.freeze({
   setTable
 });
 
-// 增强错误处理，提取行号
-function getErrorLineNumber(error, code) {
-  const match = error.stack.match(/<anonymous>:([0-9]+):[0-9]+/);
+// 运行代码
+async function runCode() {
+  terminal.write('\n🚀 正在执行代码...\n');
+  
+  const code = editor.getValue().trim();
+  if (!code) {
+    terminal.write('❌ 代码为空，请输入代码\n');
+    return;
+  }
+
+  try {
+    // 使用浏览器的原生 JS 引擎执行代码
+    const fn = new Function(
+      ...Object.keys(context),
+      `return (async () => { ${code} })();`
+    );
+    await fn(...Object.values(context));
+    terminal.write('✅ 代码执行完成\n');
+
+  } catch (err) {
+    const lineNumber = getErrorLineNumber(err, code);
+    if (lineNumber !== null) {
+      terminal.write(`❌ 异常 (第 ${lineNumber} 行)：${err.message}\n`);
+    } else {
+      terminal.write(`❌ 异常：${err.message}\n`);
+    }
+    terminal.write(`堆栈信息：${err.stack}\n`);
+  }
+}
+
+// 从错误信息中提取行号
+function getErrorLineNumber(err, code) {
+  const match = err.stack.match(/eval at .*?:(\d+):\d+/);
   if (match) {
-    return parseInt(match[1]) - 1; // 调整行号
+    const evalLine = parseInt(match[1]);
+    // 调整行号，因为我们在代码外面包了一层 async 函数
+    return evalLine - 3;
   }
   return null;
 }
 
-// 运行代码
-async function runCode() {
-  terminal.write('\n🚀 正在执行代码...\r\n');
-  
-  require(['vs/editor/editor.main'], async function(monaco) {
-    const code = editor.getValue().trim();
-    if (!code) {
-      terminal.write('❌ 代码为空，请输入代码\r\n');
-      return;
-    }
-
-    try {
-      const fn = new Function(
-        ...Object.keys(context),
-        `return (async () => { ${code} })();`
-      );
-      await fn(...Object.values(context));
-      terminal.write('✅ 代码执行完成\r\n');
-
-    } catch (err) {
-      const lineNumber = getErrorLineNumber(err, code);
-      if (lineNumber !== null) {
-        terminal.write(`❌ 异常 (第 ${lineNumber} 行)：${err.message}\r\n`);
-      } else {
-        terminal.write(`❌ 异常：${err.message}\r\n`);
-      }
-      terminal.write(`堆栈信息：${err.stack}\r\n`);
-    }
+// 复制终端内容
+function copyTerminalContent() {
+  const terminalElement = document.getElementById('terminal');
+  const text = terminalElement.textContent || '';
+  navigator.clipboard.writeText(text).then(() => {
+    terminal.write('✅ 终端内容已复制到剪贴板\n');
+  }).catch(err => {
+    terminal.write(`❌ 复制失败: ${err.message}\n`);
   });
 }
 
 // 清空终端
 function clearTerminal() {
   terminal.clear();
-
+  terminal.write('🚀 多维表格 JS 引擎已启动\n');
+  terminal.write('📝 请在编辑器中编写 JavaScript 代码\n');
+  terminal.write('▶️  点击运行按钮执行代码\n\n');
 }
 
-// 复制终端内容
-function copyTerminalContent() {
-  if (terminal.selectAll) {
-    terminal.selectAll();
-    document.execCommand('copy');
-    terminal.write('✅ 终端内容已复制到剪贴板\r\n');
-  } else {
-    terminal.write('❌ 复制功能不可用\r\n');
+// 初始化文件树
+function initFileTree() {
+  // 模拟文件树数据
+  const fileTreeData = [
+    {
+      name: 'src',
+      type: 'directory',
+      children: [
+        {
+          name: 'js',
+          type: 'directory',
+          children: [
+            {
+              name: 'main.js',
+              type: 'file',
+              path: 'src/js/main.js'
+            }
+          ]
+        }
+      ]
+    },
+    {
+      name: 'vendor',
+      type: 'directory',
+      children: [
+        {
+          name: '@lark-base-open',
+          type: 'directory',
+          children: [
+            {
+              name: 'js-sdk',
+              type: 'directory',
+              children: [
+                {
+                  name: 'dist',
+                  type: 'directory',
+                  children: [
+                    {
+                      name: 'index.js',
+                      type: 'file',
+                      path: 'vendor/@lark-base-open/js-sdk/dist/index.js'
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          name: 'danfojs',
+          type: 'directory',
+          children: [
+            {
+              name: 'lib',
+              type: 'directory',
+              children: [
+                {
+                  name: 'bundle.js',
+                  type: 'file',
+                  path: 'vendor/danfojs/lib/bundle.js'
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      name: 'index.html',
+      type: 'file',
+      path: 'index.html'
+    },
+    {
+      name: 'package.json',
+      type: 'file',
+      path: 'package.json'
+    },
+    {
+      name: 'test.js',
+      type: 'file',
+      path: 'test.js'
+    }
+  ];
+
+  // 渲染文件树
+  const fileTreeElement = document.getElementById('file-tree');
+  fileTreeElement.innerHTML = renderFileTree(fileTreeData);
+
+  // 绑定文件树点击事件
+  fileTreeElement.addEventListener('click', (e) => {
+    const fileElement = e.target.closest('.file-item');
+    if (fileElement) {
+      const path = fileElement.dataset.path;
+      if (path) {
+        openFile(path);
+      }
+    }
+  });
+}
+
+// 渲染文件树
+function renderFileTree(data, level = 0) {
+  let html = '<ul style="list-style: none; padding-left: ' + (level * 20) + 'px;">';
+  data.forEach(item => {
+    if (item.type === 'directory') {
+      html += `<li class="directory-item" style="margin: 4px 0;">
+                <span style="cursor: pointer; display: flex; align-items: center;">
+                  <span style="margin-right: 8px;">📁</span>
+                  ${item.name}
+                </span>
+                ${renderFileTree(item.children || [], level + 1)}
+              </li>`;
+    } else {
+      html += `<li class="file-item" data-path="${item.path}" style="margin: 4px 0; cursor: pointer; display: flex; align-items: center;">
+                <span style="margin-right: 8px;">📄</span>
+                ${item.name}
+              </li>`;
+    }
+  });
+  html += '</ul>';
+  return html;
+}
+
+// 打开文件
+function openFile(path) {
+  // 这里可以根据路径加载文件内容
+  // 目前我们只是模拟打开文件
+  terminal.write(`📂 打开文件: ${path}\n`);
+  
+  // 设置编辑器内容
+  if (path === 'test.js') {
+    editor.setValue('// 测试代码 - 可以直接复制到代码编辑器中执行\nasync function testNewFunctions() {\n  try {\n    // 测试 getTable 函数\n    console.log(\'测试 getTable 函数...\');\n    const table = await getTable();\n    console.log(\'获取表格成功:\', !!table);\n    \n    // 输出表格的基本信息，而不是整个表格实例\n    console.log(\'表格名称:\', table.name);\n    console.log(\'表格ID:\', table.id);\n    \n    // 测试 table2dict 函数\n    console.log(\'\n测试 table2dict 函数...\');\n    const data = await table2dict(table);\n    console.log(\'转换为字典成功:\', Object.keys(data).length > 0);\n    console.log(\'数据:\', data);\n    \n    // 测试 setTable 函数\n    console.log(\'\n测试 setTable 函数...\');\n    if (data && Object.keys(data).length > 0) {\n      // 创建一个简单的 DataFrame\n      const df = new dfd.DataFrame(data);\n      console.log(\'创建 DataFrame 成功:\', !!df);\n      \n      // 更新表格\n      const result = await setTable(table, df);\n      console.log(\'更新表格成功:\', result);\n    }\n  } catch (error) {\n    console.error(\'测试失败:\', error);\n  }\n}\n\ntestNewFunctions();\n\n// 或者直接执行以下代码，不需要调用函数\n/*\ntry {\n  // 测试 getTable 函数\n  console.log(\'测试 getTable 函数...\');\n  const table = await getTable();\n  console.log(\'获取表格成功:\', !!table);\n  \n  // 输出表格的基本信息，而不是整个表格实例\n  console.log(\'表格名称:\', table.name);\n  console.log(\'表格ID:\', table.id);\n  \n  // 测试 table2dict 函数\n  console.log(\'\n测试 table2dict 函数...\');\n  const data = await table2dict(table);\n  console.log(\'转换为字典成功:\', Object.keys(data).length > 0);\n  console.log(\'数据:\', data);\n  \n  // 测试 setTable 函数\n  console.log(\'\n测试 setTable 函数...\');\n  if (data && Object.keys(data).length > 0) {\n    // 创建一个简单的 DataFrame\n    const df = new dfd.DataFrame(data);\n    console.log(\'创建 DataFrame 成功:\', !!df);\n    \n    // 更新表格\n    const result = await setTable(table, df);\n    console.log(\'更新表格成功:\', result);\n  }\n} catch (error) {\n  console.error(\'测试失败:\', error);\n}\n*/');
+  } else if (path === 'src/js/main.js') {
+    editor.setValue('// 主脚本文件');
+  } else if (path === 'package.json') {
+    editor.setValue('// package.json 文件');
+  } else if (path === 'index.html') {
+    editor.setValue('// index.html 文件');
   }
 }
 
-// 初始化应用
-function initApp() {
-  // 初始化 Monaco Editor
-  initMonacoEditor();
+// 初始化
+async function init() {
+  // 初始化文件树
+  initFileTree();
+  
+  // 初始化编辑器
+  editor = {
+    getValue: function() {
+      return document.getElementById('editor').value;
+    },
+    setValue: function(value) {
+      document.getElementById('editor').value = value;
+    }
+  };
   
   // 初始化终端
-  initTerminal();
+  terminal = {
+    write: function(text) {
+      const terminalElement = document.getElementById('terminal');
+      const placeholder = terminalElement.querySelector('.terminal-placeholder');
+      if (placeholder) {
+        placeholder.style.display = 'none';
+      }
+      terminalElement.innerHTML += text;
+      terminalElement.scrollTop = terminalElement.scrollHeight;
+    },
+    clear: function() {
+      const terminalElement = document.getElementById('terminal');
+      terminalElement.innerHTML = '<div class="terminal-placeholder" style="color: #666; pointer-events: none;">程序输出将显示在这里</div>';
+    }
+  };
+  
+  // 创建自定义控制台
+  customConsole = new CustomConsole(terminal);
+  
+  // 绑定事件
+  document.getElementById('editor-run').addEventListener('click', runCode);
+  document.getElementById('terminal-copy').addEventListener('click', copyTerminalContent);
+  document.getElementById('terminal-clear').addEventListener('click', clearTerminal);
   
   // 初始化可拖动分隔条
   initResizer();
+  
+  // 输出欢迎信息
+  terminal.write('🎉 多维表格 JS 引擎初始化完成\n');
+  terminal.write('📚 支持的功能：\n');
+  terminal.write('  - 代码编辑和执行\n');
+  terminal.write('  - 表格数据读取和转换\n');
+  terminal.write('  - DataFrame 数据更新表格\n');
+  terminal.write('  - 自定义控制台输出\n');
+  terminal.write('  - 文件树浏览\n\n');
+  
+  // 设置默认编辑器内容
+  editor.setValue('// 在这里编写 JavaScript 代码\n\nasync function test() {\n  console.log("Hello, World!");\n  \n  // 测试飞书表格操作\n  try {\n    const table = await getTable();\n    console.log("获取表格成功:", !!table);\n    \n    // 输出表格的基本信息\n    console.log("表格名称:", table.name);\n    console.log("表格ID:", table.id);\n    \n    // 测试 table2dict 函数\n    const data = await table2dict(table);\n    console.log("转换为字典成功:", Object.keys(data).length > 0);\n    console.log("数据:", data);\n    \n    // 测试 setTable 函数\n    if (data && Object.keys(data).length > 0) {\n      // 创建一个简单的 DataFrame\n      const df = new dfd.DataFrame(data);\n      console.log("创建 DataFrame 成功:", !!df);\n      \n      // 更新表格\n      const result = await setTable(table, df);\n      console.log("更新表格成功:", result);\n    }\n  } catch (error) {\n    console.error("测试失败:", error);\n  }\n}\n\ntest();');
+}
 
-  // 绑定事件
-  document.getElementById('editor-run').addEventListener('click', runCode);
-  document.getElementById('terminal-clear').addEventListener('click', clearTerminal);
-  document.getElementById('terminal-copy').addEventListener('click', copyTerminalContent);
+// 初始化可拖动分隔条
+function initResizer() {
+  const resizer = document.getElementById('resizer');
+  const editorContainer = document.querySelector('.editor-container');
+  const terminalContainer = document.querySelector('.terminal-container');
+  const container = document.querySelector('.editor-terminal');
+  
+  let isResizing = false;
+  let startY = 0;
+  let startEditorHeight = 0;
+  
+  resizer.addEventListener('mousedown', (e) => {
+    isResizing = true;
+    startY = e.clientY;
+    startEditorHeight = editorContainer.offsetHeight;
+    document.body.style.cursor = 'row-resize';
+  });
+  
+  document.addEventListener('mousemove', (e) => {
+    if (!isResizing) return;
+    
+    const deltaY = e.clientY - startY;
+    const newEditorHeight = startEditorHeight + deltaY;
+    const containerHeight = container.offsetHeight;
+    
+    // 确保最小高度
+    if (newEditorHeight >= 100 && containerHeight - newEditorHeight >= 100) {
+      const editorFlex = newEditorHeight / containerHeight;
+      const terminalFlex = (containerHeight - newEditorHeight) / containerHeight;
+      
+      editorContainer.style.flex = editorFlex;
+      terminalContainer.style.flex = terminalFlex;
+    }
+  });
+  
+  document.addEventListener('mouseup', () => {
+    isResizing = false;
+    document.body.style.cursor = '';
+  });
 }
 
 // 页面加载完成后初始化
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initApp);
-} else {
-  initApp();
-}
+window.addEventListener('DOMContentLoaded', init);

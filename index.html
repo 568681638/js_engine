@@ -1,145 +1,173 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>多维表格 JS 引擎</title>
-  <!-- Monaco Editor 样式 -->
-  <link rel="stylesheet" href="vendor/monaco-editor/min/vs/editor/editor.main.css">
-  <!-- xterm.js 样式 -->
-  <link rel="stylesheet" href="vendor/xterm.js/css/xterm.css">
-  <!-- 自定义样式 -->
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: system-ui; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: #f5f5f5;
+      height: 100vh;
+      overflow: hidden;
+    }
+    
     .container {
+      display: flex;
+      height: 100vh;
+      width: 100vw;
+    }
+    
+    /* 文件树样式 */
+    .file-tree {
+      width: 250px;
+      background-color: #ffffff;
+      border-right: 1px solid #e0e0e0;
+      overflow-y: auto;
+      padding: 10px;
+    }
+    
+    /* 编辑器和终端容器 */
+    .editor-terminal {
       flex: 1;
       display: flex;
       flex-direction: column;
-      gap: 0;
-      overflow: hidden;
-      padding: 12px;
     }
+    
+    /* 编辑器容器 */
     .editor-container {
       flex: 2;
-      display: flex;
-      flex-direction: column;
-      border: 1px solid #e5e7eb;
-      border-radius: 6px 6px 0 0;
-      overflow: hidden;
-      min-height: 100px;
-    }
-    .editor-header {
-      padding: 8px 12px;
-      background: #f3f4f6;
-      border-bottom: 1px solid #e5e7eb;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .editor-header h3 { font-size: 14px; font-weight: 500; }
-    .editor-header .header-buttons { display: flex; gap: 8px; }
-    .editor-header .header-buttons button { padding: 4px 8px; font-size: 12px; border: 1px solid #d1d5db; border-radius: 4px; background: #fff; cursor: pointer; }
-    #editor { flex: 1; height: 100%; }
-    .resizer {
-      height: 6px;
-      background: #e5e7eb;
-      cursor: row-resize;
+      background-color: #ffffff;
+      border-bottom: 1px solid #e0e0e0;
       position: relative;
     }
-    .resizer:hover {
-      background: #d1d5db;
-    }
-    .resizer::after {
-      content: '';
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 40px;
-      height: 2px;
-      background: #9ca3af;
-      border-radius: 1px;
-    }
+    
+    /* 终端容器 */
     .terminal-container {
       flex: 1;
-      display: flex;
-      flex-direction: column;
-      border: 1px solid #e5e7eb;
-      border-radius: 0 0 6px 6px;
-      overflow: hidden;
-      min-height: 100px;
+      background-color: #1e1e1e;
+      position: relative;
     }
     
-    /* 确保终端内容容器有正确的滚动行为 */
-    #terminal {
-      flex: 1;
+    /* 分隔条样式 */
+    .resizer {
+      width: 100%;
+      height: 4px;
+      background-color: #e0e0e0;
+      cursor: row-resize;
+    }
+    
+    .resizer:hover {
+      background-color: #1890ff;
+    }
+    
+    /* 编辑器和终端内部元素 */
+    #editor {
+      width: 100%;
       height: 100%;
-      box-sizing: border-box;
-      overflow-y: auto;
-      overflow-x: hidden;
+      border: none;
+      padding: 10px;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      font-size: 14px;
+      resize: none;
     }
     
-    /* 避免子元素 margin 溢出容器 */
-    #terminal > * {
-      margin: 0;
+    #terminal {
+      width: 100%;
+      height: 100%;
+      background-color: #1e1e1e;
+      color: #d4d4d4;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      font-size: 14px;
+      padding: 10px;
+      overflow-y: auto;
     }
-    .terminal-header {
-      padding: 8px 12px;
+    
+    /* 按钮样式 */
+    button {
+      padding: 4px 8px;
+      font-size: 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      background: #fff;
+      cursor: pointer;
+    }
+    
+    button:hover {
       background: #f3f4f6;
-      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    /* 文件树样式 */
+    .file-tree ul {
+      list-style: none;
+      padding-left: 20px;
+    }
+    
+    .file-tree li {
+      margin: 4px 0;
+      cursor: pointer;
       display: flex;
-      justify-content: space-between;
       align-items: center;
     }
-    .terminal-header h3 { font-size: 14px; font-weight: 500; }
-    .terminal-header .header-buttons { display: flex; gap: 8px; }
-    .terminal-header .header-buttons button { padding: 4px 8px; font-size: 12px; border: 1px solid #d1d5db; border-radius: 4px; background: #fff; cursor: pointer; }
-    #terminal { flex: 1; height: 100%; box-sizing: border-box; }
+    
+    .file-tree li:hover {
+      background-color: #f3f4f6;
+      border-radius: 2px;
+    }
+    
+    .file-tree .directory-item span {
+      display: flex;
+      align-items: center;
+    }
+    
+    .file-tree .file-item {
+      display: flex;
+      align-items: center;
+    }
+    
+    .file-tree .file-item span {
+      margin-right: 8px;
+    }
   </style>
+  <!-- 引入 Danfo.js -->
+  <script src="vendor/danfojs/lib/bundle.js"></script>
 </head>
 <body>
-
-
-<div class="container">
-  <div class="editor-container">
-    <div class="editor-header">
-      <h3>代码编辑器</h3>
-      <div class="header-buttons">
-        <button id="editor-run">运行</button>
+  <div class="container">
+    <!-- 文件树 -->
+    <div class="file-tree" id="file-tree"></div>
+    
+    <!-- 编辑器和终端 -->
+    <div class="editor-terminal">
+      <!-- 编辑器 -->
+      <div class="editor-container">
+        <textarea id="editor" placeholder="在这里编写 JavaScript 代码..."></textarea>
+        <button id="editor-run" style="position: absolute; top: 10px; right: 10px;">运行</button>
+      </div>
+      
+      <!-- 可拖动分隔条 -->
+      <div class="resizer" id="resizer"></div>
+      
+      <!-- 终端 -->
+      <div class="terminal-container">
+        <div id="terminal" class="terminal-content">
+          <div class="terminal-placeholder" style="color: #666; pointer-events: none;">程序输出将显示在这里</div>
+        </div>
+        <div style="position: absolute; top: 10px; right: 10px; display: flex; gap: 8px;">
+          <button id="terminal-copy">复制</button>
+          <button id="terminal-clear">清空</button>
+        </div>
       </div>
     </div>
-    <div id="editor"></div>
   </div>
-  <div class="resizer" id="resizer"></div>
-  <div class="terminal-container">
-    <div class="terminal-header">
-      <h3>终端</h3>
-      <div class="header-buttons">
-        <button id="terminal-copy">复制</button>
-        <button id="terminal-clear">清空</button>
-      </div>
-    </div>
-    <div id="terminal"></div>
-  </div>
-</div>
-
-<!-- Monaco Editor -->
-<script src="vendor/monaco-editor/min/vs/loader.js"></script>
-<script>
-  require.config({
-    paths: {
-      'vs': 'vendor/monaco-editor/min/vs'
-    }
-  });
-</script>
-<!-- xterm.js -->
-<script src="vendor/xterm.js/lib/xterm.js"></script>
-<!-- Danfo.js -->
-<script src="vendor/danfojs/lib/bundle.js"></script>
-
-<!-- @lark-base-open/js-sdk -->
-<script src="vendor/@lark-base-open/js-sdk/dist/index.js"></script>
-<!-- 主脚本 -->
-<script type="module" src="src/js/main.js"></script>
+  
+  <!-- 引入主脚本 -->
+  <script src="src/js/main.js"></script>
 </body>
 </html>

@@ -1,0 +1,79 @@
+{
+  "name": "@wannacode/code-editor-sdk",
+  "version": "1.0.11",
+  "description": "React SDK component for online code editing with built-in Node.js runtime, terminal, and GitHub integration",
+  "type": "module",
+  "main": "./src/CodeEditorSDK/index.js",
+  "module": "./src/CodeEditorSDK/index.js",
+  "types": "./src/CodeEditorSDK/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/CodeEditorSDK/index.d.ts",
+      "import": "./src/CodeEditorSDK/index.js",
+      "require": "./src/CodeEditorSDK/index.js"
+    },
+    "./styles": "./src/index.css"
+  },
+  "files": [
+    "src/CodeEditorSDK",
+    "src/index.css",
+    "README.md",
+    "USAGE.md"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "build:lib": "vite build --mode library",
+    "prepublishOnly": "echo 'Publishing package...'",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wannacode/js-practice-editor-2.git"
+  },
+  "keywords": [
+    "code-editor",
+    "monaco-editor",
+    "webcontainer",
+    "nodejs-browser",
+    "terminal",
+    "xterm",
+    "react",
+    "sdk"
+  ],
+  "author": "Max Roslow",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@monaco-editor/react": "^4.7.0",
+    "@webcontainer/api": "^1.6.1",
+    "@xterm/addon-fit": "^0.10.0",
+    "@xterm/addon-web-links": "^0.11.0",
+    "@xterm/xterm": "^5.5.0",
+    "lucide-react": "^0.556.0",
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0",
+    "xterm": "^5.3.0",
+    "zustand": "^5.0.9"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@tailwindcss/vite": "^4.1.17",
+    "@types/react": "^19.2.5",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.1",
+    "eslint": "^9.39.1",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.5.0",
+    "tailwindcss": "^4.1.17",
+    "vite": "^7.2.4"
+  },
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0"
+  }
+}
